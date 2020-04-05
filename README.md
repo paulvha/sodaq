@@ -1,4 +1,4 @@
-#NB-IoT examples with SODAQ
+# NB-IoT examples with SODAQ
 
 ## ===========================================================
 
@@ -13,7 +13,7 @@ After a lot reading it seems that UBLOX has the good modules for this and
 I choose the SARA R410M. The good news, this module is used on a wide
 variety of boards. The bad news, if you get a module with old firmware,
 the support (despite many mails) from UBLOX is bad, really very bad, read:
-** the worst of all companies I have been dealing with **
+**the worst of all companies I have been dealing with**
 
 They are an OEM supplier and do not want to support end users. New firmware
 was available, but they did not want to provide it. They do NOT want to
@@ -21,7 +21,7 @@ help you. You had to go back to your supplier. Both the supplier and reseller
 did not have it. I was stuck and I have wasted weeks and returned my board.
 
 ### A word about SODAQ
-I connected with ** SODAQ support department before buying and got extremely
+I connected with **SODAQ support department before buying and got extremely
 good, honest and fast answers.** I decided to buy their SODAQ ARF/SARA board.
 Great online forum, good open source software all you want. Got the first
 project up and running in half a day.
