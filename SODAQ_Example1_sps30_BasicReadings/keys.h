@@ -2,11 +2,8 @@
 #define KEYS_h
 
 // Enter your Allthingstalk device authentication
-//char* DEVICE_ID = "yourdeviceid";
-//char* DEVICE_TOKEN = "yourdevicetoken";
-
-char* DEVICE_ID = "5jnVPR3aLKDNtumI3L3qH6Ux";
-char* DEVICE_TOKEN = "vodafone:4RoFgwx6PAgoW1VeVxaNwJ5eKv36THiTsVceGMA";
+char* DEVICE_ID = "yourdeviceid";
+char* DEVICE_TOKEN = "yourdevicetoken";
 
 // Enter the API endpoint for your Allthingstalk IP
 char* ALLTHINGSTALK_IP = "37.97.216.22";
