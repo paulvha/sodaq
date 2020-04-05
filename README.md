@@ -30,18 +30,16 @@ project up and running in half a day.
 Make sure to not only select the right technology, but as important choose
 the right supplier.
 
-<br> A detailed description of the options and findings are in SPS30.odt
-
 ## SODAQ Examples
 
 I plan to create a number of different examples to test NB-IoT. The Sodaq
-board I acquired comes with VOdafone backoffice ( Allthingstalk.com). I
+board I acquired comes with Vodafone backoffice ( Allthingstalk.com). I
 am using that for now, as it working smooth and easy. In later
 examples I want to look at others as well.
 
 The projects :
 ### Example 1 : SPS30 sensor to SODAQ and Allthingstalk.
-### Example 2 : SPS30 sensor + BME280  to SODAQ and Allthingstalk.
+### Example 2 : SPS30 sensor + BME280 to SODAQ and Allthingstalk.
 
 <br> Many of the examples have a .odt (open document) file in the folder.
 This contains more detailed information about the setup and project. They
@@ -71,4 +69,4 @@ This project is licensed under the GNU GENERAL PUBLIC LICENSE 3.0
 ## Acknowledgments
 Please make sure to read the Allthingstalk documentation, use the
 information from Sodaq about the boards and examples ![https://learn.sodaq.com/Boards/](https://learn.sodaq.com/Boards/)
-Use the Sodaq forum :![http://forum.sodaq.com/](http://forum.sodaq.com/)
+and use the Sodaq forum :![http://forum.sodaq.com/](http://forum.sodaq.com/)
