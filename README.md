@@ -18,7 +18,7 @@ the support (despite many mails) from UBLOX is bad, really very bad, read:
 They are an OEM supplier and do not want to support end users. New firmware
 was available, but they did not want to provide it. They do NOT want to
 help you. You had to go back to your supplier. Both the supplier and reseller
-did not have it. I was stuck and I have wasted weeks and returned my board.
+did not have it. I was stuck, I have wasted weeks and returned my board.
 
 ### A word about SODAQ
 I connected with **SODAQ support department before buying and got extremely
@@ -40,10 +40,11 @@ examples I want to look at others as well.
 The projects :
 ### Example 1 : SPS30 sensor to SODAQ and Allthingstalk.
 ### Example 2 : SPS30 sensor + BME280 to SODAQ and Allthingstalk.
+### Example 3 : Detect turning, shacking and tilting the board with Accelerator.
 
 <br> Many of the examples have a .odt (open document) file in the folder.
 This contains more detailed information about the setup and project. They
-can be read with nearly any word processor ( LibreOffice, Microsoft word etc)
+can be read with nearly any word processor (LibreOffice, Microsoft word etc)
 
 ## Prerequisites
 Documented in the top of each sketch.
@@ -58,7 +59,7 @@ Please see the description in the top of the sketch and read the documentation (
 ## Versioning
 
 ### version 1.0 / April 2020
- * Initial version with Example 1 and Example 2
+ * Initial version with Example1, Example2 and Example3
 
 ## Author
  * Paul van Haastrecht (paulvha@hotmail.com)
