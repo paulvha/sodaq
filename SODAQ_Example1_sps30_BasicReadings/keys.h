@@ -6,7 +6,7 @@ char* DEVICE_ID = "yourdeviceid";
 char* DEVICE_TOKEN = "yourdevicetoken";
 
 // Enter the API endpoint for your Allthingstalk IP
-char* ALLTHINGSTALK_IP = "37.97.216.22";
+char* ALLTHINGSTALK_IP = "api.allthingstalk.io";
 
 //*****************************************************************
 //**                      LED FUNCTIONS                          **
