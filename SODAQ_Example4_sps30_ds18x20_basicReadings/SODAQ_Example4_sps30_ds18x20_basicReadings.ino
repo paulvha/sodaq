@@ -12,17 +12,19 @@
  *   -requires the following SODAQ drivers :
  *   https://github.com/SodaqMoja/Sodaq_R4X
  *   https://github.com/SodaqMoja/Sodaq_wdt
- *   -requires at least SPS30 driver version 1.3.10 https://github.com/paulvha/sps30
+ *   -requires at least SPS30 driver version 1.3.10: https://github.com/paulvha/sps30
+ * 
+ *   For DS18x20 Temperature sensor obtain  https://github.com/PaulStoffregen/OneWire
  *
  *  =========================  Highlevel description ================================
  *
- *  This basic reading example sketch will connect to an SPS30 for getting data and
+ *  This example sketch will connect to an SPS30 and DS18X20 for getting data and
  *  display the available data. It will also connect with a SODAQ SARA to AllThingsTalk
- *  and display the SPS30-id, Mass1, Mass2, Mass10 values 
+ *  and display the SPS30-id, Mass1, Mass2, Mass10 and temperature values 
  */  
- // ************* for detailed setup see Example1.odt in this folder ****************** 
-/* 
- *  ============================ HARDWARE CONNECTION ==================================
+ // ************* for detailed setup see Example4.odt in this folder ******************
+ 
+/* ============================ HARDWARE CONNECTION ==================================
  *  Successfully tested on SODAQ SARA/AFF
  *  
  *  Serial
@@ -34,6 +36,14 @@
  *  4 Select-----     NOT CONNECTED (Select Serial)
  *  5 GND -------   GND
  *  
+ *               DS18x20           SODAQ
+ *   ------      GND   ------------- GND
+ * |-| 4k7 |--   VCC /red ---------  3V3
+ * | ------
+ * |-----------  data/yellow ------- D4
+ * 
+ *  You MUST connect a resistor of atleast 4K7 between data and VCC for pull-up.
+ * 
  *  SELECT SP30_COMMS SERIALPORT
  *-----------------------------------------------------------------------------------
  *  I2C ONLY   
@@ -42,17 +52,42 @@
  *  When connecting as indicated below TO SDA AND SCL those pull-up resistors are already 
  *  on the SODAQ board.
  *
- *  SPS30 pin     SODAQ
- *  1 VCC -------- 5V
- *  2 SDA -------- SDA (next to ARF     NOT A4 / SDA1)
- *  3 SCL -------- SCL (next to SCL/ARF NOT A5/ SCL1)
- *  4 Select ----- GND (select I2c)
- *  5 GND -------- GND
+
+ *
+ *  SPS30 pin         SODAQ
+ *  1 VCC ------------- 5V
+ *  2 SDA -------------SDA (next to ARF     NOT A4 / SDA1)
+ *  3 SCL -------------SCL (next to SCL/ARF NOT A5/ SCL1)
+ *  4 Select ----------GND(select I2c)
+ *  5 GND ------------ GND
+ *
+ *               DS18x20           SODAQ
+ *   ------      GND   ------------- GND
+ * |-| 4k7 |--   VCC /red ---------  3V3
+ * | ------
+ * |-----------  data/yellow ------- D4
+ * 
+ *  You MUST connect a resistor of atleast 4K7 between data and VCC for pull-up.
  *  
  *  SELECT SP30_COMMS I2C_COMMS
+ * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ *  WARNING!! WARNING !!WARNING!! WARNING !!WARNING!! WARNING !! WARNING!! WARNING !!
+ *  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ *  The DS18B20 works with VCC between 3 and 5V. It works fine on 3.3V however if connected to 5V
+ *  and you have an Sodaq, you MUST include a level shifter or making a bridge with resistors like below
+ *
+ *            -------            -------
+ *  GND ------| 10K  |-----!---- | 5k6 |------  data/yellow from DS18x20
+ *            --------     !     -------
+ *                         !
+ *                         pin D4 (SODAQ)
+ *                         
+ *
+ *  Code for the DS18x20 is based on the DS18x20 example in the onewire library                       
+ *  
  *  ================================= PARAMETERS =====================================
  *
- *  From line 79 there are configuration parameters for the program.
+ *  From line 115 there are configuration parameters for the program.
  */
  //###################################################################################
  // !!!!!!!!!!!!!! Also update the attached keys.h file with device information !!!!!!
@@ -72,6 +107,7 @@
  */
 #include <Sodaq_R4X.h>
 #include <Sodaq_wdt.h>
+#include <OneWire.h>
 #include "sps30.h"
 #include "keys.h"
 #include <avr/dtostrf.h>
@@ -104,25 +140,38 @@
 //const char* apn = "internet.m2m";
 //const char* forceOperator = "20408"; // optional - depends on SIM / network
 
-//*****************************************************************
-//* Define debug messages                                        **     
-//* 0 : no messages                                              **     
-//* 1 : request sending and receiving                            **     
-//* 2 : 1 + show protocol errors   (SPS30 only)                  **
-//*****************************************************************
-#define SPS30_DEBUG 0
-#define SODAQ_DEBUG 0
+//****************************************************************
+//* Define debug messages                                       **     
+//* 0 : no messages                                             **     
+//* 1 : messages + sending and receiving                        **     
+//* 2 : 1 + show protocol errors   (SPS30 only)                 **
+//****************************************************************
+#define SPS30_DEBUG  0
+#define SODAQ_DEBUG  0
 #define SKETCH_DEBUG 0
 
-//*****************************************************************
-//*        measurement constants                                 **     
-//*****************************************************************
-#define MEASUREMENTPERIOD  60000     // time between sending update to AllTHingSTalk (ms) (60000 = 60 sec)
+//****************************************************************
+//*        measurement constants                                **     
+//****************************************************************
+#define MEASUREMENTPERIOD  60000     // time between sending update to AllThingSTalk (ms) (60000 = 60 sec)
 #define MEASUREINTERVAL    5000      // delay between measurement in mS (5000 = 5 seconds)
 
-///////////////////////////////////////////////////////////////
-/////////// NO CHANGES BEYOND THIS POINT NEEDED ///////////////
-///////////////////////////////////////////////////////////////
+//****************************************************************
+//*        DS18x20  configuration                               **     
+//****************************************************************
+
+/* To which pin is the data wire of the DS18x20 connected
+ */
+#define TEMP_PIN 4          // see remark in hardware section in begin sketch
+
+/* Define reading in Fahrenheit or Celsius
+ *  1 = Celsius
+ *  0 = Fahrenheit */
+#define TEMP_TYPE 1
+
+//////////////////////////////////////////////////////////////////
+///////////// NO CHANGES BEYOND THIS POINT NEEDED ////////////////
+//////////////////////////////////////////////////////////////////
 
 //********************** DEFINITIONS *****************************
 
@@ -157,11 +206,12 @@
 #define DEBUG_STREAM_BAUD 115200
 #define STARTUP_DELAY 5000        // WDT
 
-//*********************** CONSTRUCTORS ****************************
+//*********************** CONSTRUCTORS ***************************
 SPS30 sps30;
 Sodaq_R4X r4x;
+OneWire ds(TEMP_PIN);
 
-//********************** GLOBAL VARIABLES *************************
+//********************** GLOBAL VARIABLES ************************
 
 // contains pointers to driver on / off routines
 static Sodaq_SARA_R4XX_OnOff saraR4xxOnOff;   
@@ -171,14 +221,19 @@ float TotalMassPM1  = 0;
 float TotalMassPM2  = 0;
 float TotalMassPM10 = 0;
 uint32_t SampleCnt  = 0;
-String SPS_id;    // SPS30 ID, will be set to last 4 digits serial number 
+String SPS_id ;               // SPS30 ID to include 
+
+// store temperature DS18x20 type and address
+byte type_s;                  // holds type. 0xf = NOT detected
+byte addr[8];
+float ds_temperature;         // store measured temperature
 
 unsigned long startMillis;   // Used to keep track of send interval
 bool header = true;          // display header
 
-//*****************************************************************
-//**                      SEND MESSAGE                           **
-//*****************************************************************
+//****************************************************************
+//**                      SEND MESSAGE                          **
+//****************************************************************
 void sendMessageThroughUDP()
 {
     if (SKETCH_DEBUG) DEBUG_STREAM.println("\nSending message through UDP");
@@ -193,15 +248,19 @@ void sendMessageThroughUDP()
 
     if (SKETCH_DEBUG) DEBUG_STREAM.println("Created socket!");
     
+    ds_temperature = read_Temperature();
+    
     setLight(GREEN);   // indicate sending
     
     String deviceId = DEVICE_ID;    // defined in keys.h
     String token = DEVICE_TOKEN;
-    // create JSON values
+    
+    // create JSON with values
     String value =  "{\"ID\":{\"value\":\"" + String(SPS_id) + "\"}";
            value += ",\"M1\":{\"value\":" + String(TotalMassPM1 / SampleCnt) +"}";
            value += ",\"M2\":{\"value\":" + String(TotalMassPM2 / SampleCnt) +"}";
-           value += ",\"M10\":{\"value\":" + String(TotalMassPM10 / SampleCnt) +"}}";
+           value += ",\"M10\":{\"value\":" + String(TotalMassPM10 / SampleCnt) +"}";
+           value += ",\"TEMP\":{\"value\":" + String(ds_temperature) +"}}";
 
     String reading = deviceId + '\n' + token + '\n' + value;
 
@@ -212,49 +271,51 @@ void sendMessageThroughUDP()
     // only reset if succesfull
     if (rsize == lengthSent) {
       TotalMassPM1 = 0; TotalMassPM2 = 0; TotalMassPM10 = 0; SampleCnt = 0;
-      startMillis = millis(); 
-      setLight(OFF);
+      startMillis = millis(); setLight(OFF);
     }
     else
       setLight(RED);    // indicate error
     
-    if (SKETCH_DEBUG)  {
+    if (SKETCH_DEBUG) {
       DEBUG_STREAM.println("data sent: "); DEBUG_STREAM.println(reading); 
       DEBUG_STREAM.print("Length buffer vs sent:"); DEBUG_STREAM.print(rsize); DEBUG_STREAM.print(",");
       DEBUG_STREAM.println(lengthSent); DEBUG_STREAM.println();
     }
 }
 
-//*************************************************************
-//**                  SETUP FUNCTIONS                        **
-//*************************************************************
+//****************************************************************
+//**                  SETUP FUNCTIONS                           **
+//****************************************************************
 void setup() {
   
   sodaq_wdt_safe_delay(STARTUP_DELAY);
-   
-  DEBUG_STREAM.begin(DEBUG_STREAM_BAUD);
  
-  if (SKETCH_DEBUG) serialTrigger((char *) "SPS30-SODAQ-Example1: Basic reading. press <enter> to start");
-
-  InitLed(); 
+  DEBUG_STREAM.begin(DEBUG_STREAM_BAUD);
   
-  setLight(YELLOW);     InitSpS30();
+  if (SKETCH_DEBUG ||SPS30_DEBUG || SODAQ_DEBUG) 
+      serialTrigger((char *) "SPS30-SODAQ-Example4: reading with DS18X20. press <enter> to start");
   
-  setLight(BLUE);       InitSodaq();
+  InitLed();
 
+  setLight(GREEN);       InitDs18x20();
+
+  setLight(YELLOW);      InitSpS30();
+  
+  setLight(BLUE);        InitSodaq();
+  
   setLight(OFF);
-
+  
   // start measurement
-  if (! sps30.start() )   Errorloop((char *) "Could NOT start measurement", 0);
+  if (! sps30.start() )  Errorloop((char *) "Could NOT start measurement", 0);
     
   DEBUG_STREAM.println(F("Measurement started"));
 
   startMillis = millis();           // Saves the initial millis value 
 }
 
-//*************************************************************
-//**                   LOOP FUNCTIONS                        **
-//*************************************************************
+//****************************************************************
+//**                   LOOP FUNCTIONS                           **
+//****************************************************************
 void loop() {
   static uint8_t StillAlive = 0;
   unsigned long ElapseCnt, Interval = MEASUREINTERVAL;
@@ -284,7 +345,7 @@ void loop() {
     if (MEASUREMENTPERIOD - ElapseCnt < MEASUREINTERVAL)
         Interval = MEASUREMENTPERIOD - ElapseCnt;
   }
-
+  
   // blink led
   if (++StillAlive > 5) {
     setLight(MAGENTA);
@@ -292,9 +353,9 @@ void loop() {
     setLight(OFF);
     StillAlive = 0;
   }
-  
-  read_all(); 
-  
+
+  read_all();
+
   // stop ventilator and measurement if interval more than 60 seconds
   // you can adjust this to your needs, but 8 seconds (10 sec. to be save)
   // is needed to restart from idle mode (datasheet page 2)
@@ -306,39 +367,48 @@ void loop() {
     // 10 seconds will be applied after restart
     Interval -= 10000;
   }
-
+  
   delay(Interval);
 }
 
-//***********************************************************
-//*            read and display device info                **
-//***********************************************************
-void GetDeviceInfo() {
+//****************************************************************
+//*            read and display device info                     **
+//****************************************************************
+void GetDeviceInfo()
+{
   char buf[32];
-  uint8_t ret;
-
-  //try to read serial number
-  ret = sps30.GetSerialNumber(buf, 32);
+  uint8_t ret, cnt = 0;
   
-  if (ret == ERR_OK) {
-    DEBUG_STREAM.print(F("Serial number : "));
+  while(cnt < 2) {    // retry 3 times !
     
-    if(strlen(buf) > 0) {
-      DEBUG_STREAM.println(buf);
+    //try to read serial number
+    ret = sps30.GetSerialNumber(buf, 32);
+    
+    if (ret == ERR_OK) {
+      DEBUG_STREAM.print(F("Serial number : "));
       
-      // use the last 4 digits for SPS_id
-      for (uint8_t i = 12; i < 16; i++) SPS_id += buf[i];
+      if(strlen(buf) > 0) {
+        DEBUG_STREAM.println(buf);
+        
+        // use the last 4 digits for SPS_id
+        for (uint8_t i = 12; i < 16; i++) SPS_id += buf[i];
+        return;
+      }
+      else DEBUG_STREAM.println(F("not available"));
     }
-    else DEBUG_STREAM.println(F("not available"));
+    else {
+      ErrtoMess((char *) "could not get serial number: ", ret);
+    }
+    
+    cnt++;
   }
-  else
-    ErrtoMess((char *) "could not get serial number: ", ret);
 }
 
-//*********************************************************
-//**        read and display all SPS30 values            **     
-//*********************************************************
-bool read_all() {
+//****************************************************************
+//**        read and display all SPS30 values                   **     
+//****************************************************************
+bool read_all()
+{
   uint8_t ret, error_cnt = 0;
   struct sps_values val;
 
@@ -366,16 +436,30 @@ bool read_all() {
 
   // only print header first time
   if (header) {
-    DEBUG_STREAM.println(F("----------------------------Mass -----------------------------    -------------------------------- Number --------------------------------------       --Partsize --"));
-    DEBUG_STREAM.println(F("                     Concentration [μg/m3]                                                 Concentration [#/cm3]                                           [μm]  "));
-    DEBUG_STREAM.println(F(" PM1.0             PM2.5           PM4.0           PM10             PM0.5           PM1.0           PM2.5           PM4.0              PM10               Typical"));
+    DEBUG_STREAM.print(F("----------------------------Mass -----------------------------    -------------------------------- Number --------------------------------------       --Partsize --"));
+    if(type_s != 0xf) DEBUG_STREAM.print("\t--Temperature--");
+    DEBUG_STREAM.print(F("\n                     Concentration [μg/m3]                                                 Concentration [#/cm3]                                           [μm]  "));
+    
+    if(type_s != 0xf) {
+      if (TEMP_TYPE)  DEBUG_STREAM.print("\t    Celsius");
+      else DEBUG_STREAM.print("\t  Fahrenheit");
+    }
+    
+    DEBUG_STREAM.println(F("\n PM1.0             PM2.5           PM4.0           PM10             PM0.5           PM1.0           PM2.5           PM4.0              PM10               Typical"));
     header = false;
   }
 
   print_aligned((double) val.MassPM1, 8, 5);   print_aligned((double) val.MassPM2, 8, 5);  print_aligned((double) val.MassPM4, 8, 5);
   print_aligned((double) val.MassPM10, 8, 5);  print_aligned((double) val.NumPM0, 9, 5);   print_aligned((double) val.NumPM1, 9, 5);
   print_aligned((double) val.NumPM2, 9, 5);    print_aligned((double) val.NumPM4, 9, 5);   print_aligned((double) val.NumPM10, 15, 5);
-  print_aligned((double) val.PartSize, 7, 5);  DEBUG_STREAM.print(F("\n"));
+  print_aligned((double) val.PartSize, 7, 5);  
+     
+  if(type_s != 0xf){
+    ds_temperature = read_Temperature();
+    print_aligned((double) ds_temperature, 9, 2); 
+  }
+  
+  DEBUG_STREAM.print(F("\n"));
 
   // collect data for AllThingsTalk
   TotalMassPM1 += val.MassPM1;
@@ -386,14 +470,15 @@ bool read_all() {
   return(true);
 }
 
-//*****************************************************************
-//* @brief will print nice aligned columns                       **     
-//*                                                              **     
-//* @param val   : value to print                                **     
-//* @param width : total width of value including decimal point  **
-//* @param prec  : precision after the decimal point             **     
-//*****************************************************************
-void print_aligned(double val, signed char width, unsigned char prec) {
+//****************************************************************
+//* @brief will print nice aligned columns                      **     
+//*                                                             **     
+//* @param val   : value to print                               **     
+//* @param width : total width of value including decimal point **
+//* @param prec  : precision after the decimal point            **     
+//****************************************************************
+void print_aligned(double val, signed char width, unsigned char prec)
+{
   char out[25];
 
   dtostrf(val, width, prec, out);
@@ -404,7 +489,8 @@ void print_aligned(double val, signed char width, unsigned char prec) {
 //****************************************************************
 //**                   INITIALIZE SPS30                         **
 //****************************************************************
-void InitSpS30() {
+void InitSpS30()
+{
   DEBUG_STREAM.println(F("Trying to connect SPS30"));
 
   // set driver debug level
@@ -431,7 +517,8 @@ void InitSpS30() {
 //****************************************************************
 //**                   INITIALIZE SODAQ                         **
 //****************************************************************
-void InitSodaq() {
+void InitSodaq()
+{
   DEBUG_STREAM.print("Initializing and connecting .. ");
   DEBUG_STREAM.println(provider);
 
@@ -444,9 +531,102 @@ void InitSodaq() {
 }
 
 //****************************************************************
+//**                    DS18X20 FUNCTIONS                        **
+//****************************************************************
+void InitDs18x20()
+{
+  type_s = 0xf;            // indicate no sensor
+
+  if (TEMP_PIN == 0) return;  // no sensor pin defined
+
+  DEBUG_STREAM.print(F("Try to detect temperature sensor. "));
+
+  if ( !ds.search(addr)) {
+    DEBUG_STREAM.println(F("No temperature sensor detected."));
+    return;
+  }
+
+  if (OneWire::crc8(addr, 7) != addr[7]) {
+    Serial.println(F(" CRC is not valid!"));
+    return;
+  }
+
+  // the first ROM byte indicates which chip
+  switch (addr[0]) {
+    case 0x10:
+      DEBUG_STREAM.println(F("  Chip = DS18S20"));  // or old DS1820
+      type_s = 1;
+      break;
+    case 0x28:
+      DEBUG_STREAM.println(F("  Chip = DS18B20"));
+      type_s = 0;
+      break;
+    case 0x22:
+      DEBUG_STREAM.println(F("  Chip = DS1822"));
+      type_s = 0;
+      break;
+    default:
+      DEBUG_STREAM.println(F("Device is not a DS18x20 family device."));
+      return;
+  }
+}
+
+/**
+ * @brief : if DS18x20 sensor detected try to read it
+ */
+float read_Temperature()
+{
+  byte i;
+  byte present = 0;
+  byte data[12];
+  float celsius, fahrenheit;
+
+  if (type_s == 0xf) return(0);
+
+  ds.reset();
+  ds.select(addr);
+  ds.write(0x44, 1);          // start conversion, with parasite power on at the end
+
+  delay(1000);                // maybe 750ms is enough, maybe not
+
+  present = ds.reset();
+  ds.select(addr);
+  ds.write(0xBE);             // Read Scratchpad
+
+  for ( i = 0; i < 9; i++) {  // we need 9 bytes
+    data[i] = ds.read();
+  }
+
+  // Convert the data to actual temperature because the result is a 16 bit signed integer, it should
+  // be stored to an "int16_t" type, which is always 16 bits even when compiled on a 32 bit processor.
+  int16_t raw = (data[1] << 8) | data[0];
+  if (type_s) {
+    raw = raw << 3;            // 9 bit resolution default
+    if (data[7] == 0x10) {
+      // "count remain" gives full 12 bit resolution
+      raw = (raw & 0xFFF0) + 12 - data[6];
+    }
+  } else {
+    byte cfg = (data[4] & 0x60);
+    // at lower res, the low bits are undefined, so let's zero them
+    if (cfg == 0x00) raw = raw & ~7;      // 9 bit resolution, 93.75 ms
+    else if (cfg == 0x20) raw = raw & ~3; // 10 bit res, 187.5 ms
+    else if (cfg == 0x40) raw = raw & ~1; // 11 bit res, 375 ms
+    //// default is 12 bit resolution, 750 ms conversion time
+  }
+  celsius = (float)raw / 16.0;
+  fahrenheit = celsius * 1.8 + 32.0;
+
+  if (TEMP_TYPE)  return(celsius);
+  else return(fahrenheit);
+}
+
+
+//****************************************************************
 //*                        LED FUNCTIONS                        **     
 //****************************************************************
-void InitLed() {
+void InitLed()
+{
   pinMode(ledRed, OUTPUT);
   pinMode(ledGreen, OUTPUT);
   pinMode(ledBlue, OUTPUT);
@@ -456,7 +636,8 @@ void InitLed() {
   digitalWrite(ledBlue, HIGH);
 }
 
-void setLight(lightColor color) {
+void setLight(lightColor color)
+{
   digitalWrite(ledRed, HIGH);
   digitalWrite(ledGreen, HIGH);
   digitalWrite(ledBlue, HIGH);
@@ -501,14 +682,15 @@ void setLight(lightColor color) {
   }
 }
 
-//*************************************************************
-//*  @brief : continued loop after fatal error               **     
-//*  @param mess : message to display                        **     
-//*  @param r    : error code                                **     
-//*                                                          **     
-//*  if r is zero, it will only display the message          **     
-//*************************************************************
-void Errorloop(char *mess, uint8_t r) {
+//****************************************************************
+//*  @brief : continued loop after fatal error                  **     
+//*  @param mess : message to display                           **     
+//*  @param r    : error code                                   **     
+//*                                                             **     
+//*  if r is zero, it will only display the message             **     
+//****************************************************************
+void Errorloop(char *mess, uint8_t r)
+{
   if (r) ErrtoMess(mess, r);
   else DEBUG_STREAM.println(mess);
   DEBUG_STREAM.println(F("Program on hold"));
@@ -521,12 +703,13 @@ void Errorloop(char *mess, uint8_t r) {
   }
 }
 
-//***********************************************************
-//*  @brief :  display error message                       **     
-//*  @param mess : message to display                      **     
-//*  @param r    : error code                              **     
-//***********************************************************
-void ErrtoMess(char *mess, uint8_t r) {
+//****************************************************************
+//*  @brief :  display error message                            **     
+//*  @param mess : message to display                           **     
+//*  @param r    : error code                                   **     
+//****************************************************************
+void ErrtoMess(char *mess, uint8_t r)
+{
   char buf[80];
 
   DEBUG_STREAM.print(mess);
@@ -535,11 +718,12 @@ void ErrtoMess(char *mess, uint8_t r) {
   DEBUG_STREAM.println(buf);
 }
 
-//***********************************************************
-//* @brief : prints repeated message, then waits for enter **
-//* to come in from the serial port.                       **     
-//***********************************************************
-void serialTrigger(char * mess) {
+//****************************************************************
+//* @brief : prints repeated message, then waits for enter      **
+//* to come in from the serial port.                            **     
+//****************************************************************
+void serialTrigger(char * mess)
+{
   DEBUG_STREAM.println();
 
   while (! DEBUG_STREAM.available()) {

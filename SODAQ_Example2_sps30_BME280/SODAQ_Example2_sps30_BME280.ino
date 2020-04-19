@@ -25,7 +25,21 @@
  // ************* for detailed setup see Example2.odt in this folder ******************
  
 /* ============================ HARDWARE CONNECTION ==================================
+ *  Successfully tested on SODAQ SARA/AFF
+ *  Serial and I2C
  *  
+ *  SPS30 pin     BME280         SODAQ
+ *  1 VCC --------- 5V -------   5V
+ *  2 RX ----------------------- 1 TX 
+ *  3 TX ----------------------- 0 RX 
+ *  4 Select------------ --------     NOT CONNECTED (Select Serial)
+ *  5 GND --------- GND--------   GND
+ *                  SCK -------   SCL (next to SCL/ARF NOT A5 / SCL1)
+ *                  SDI -------   SDA (next to ARF     NOT A4 / SDA1)
+ *  
+ *  SELECT SP30_COMMS SERIALPORT
+ *-----------------------------------------------------------------------------------
+ *  I2C ONLY   
  *  As documented in the datasheet, make sure to use external 10K pull-up resistor on
  *  both the SDA and SCL lines. Otherwise the communication with the sensor will fail random.
  *  When connecting as indicated below TO SDA AND SCL those pull-up resistors are already 
@@ -42,7 +56,7 @@
  *
  *  ================================= PARAMETERS =====================================
  *
- *  From line 75 there are configuration parameters for the program.
+ *  From line 85 there are configuration parameters for the program.
  */
  //###################################################################################
  // !!!!!!!!!!!!!! Also update the attached keys.h file with device information !!!!!!
@@ -67,6 +81,13 @@
 #include "sps30.h"
 #include "keys.h"
 #include <avr/dtostrf.h>
+
+//*****************************************************************
+//**                SELECT SPS30 connection (see above)          **
+//** I2C    -> I2C_COMMS                                         **
+//** serial -> SERIALPORT                                        **
+//*****************************************************************
+#define SP30_COMMS SERIALPORT
 
 //*****************************************************************
 //**                SELECT PROVIDER INFORMATION                  **
@@ -145,7 +166,6 @@
 #error "Please use one of the listed boards or add your board."
 #endif
 
-#define SP30_COMMS I2C_COMMS
 #define DEBUG_STREAM_BAUD 115200
 #define STARTUP_DELAY 5000        // WDT
 
@@ -217,7 +237,8 @@ void sendMessageThroughUDP()
     // only reset if succesfull
     if (rsize == lengthSent) {
       TotalMassPM1 = 0; TotalMassPM2 = 0; TotalMassPM10 = 0; SampleCnt = 0;
-      startMillis = millis(); setLight(OFF);
+      startMillis = millis(); 
+      setLight(OFF);
     }
     else
       setLight(RED);    // indicate error
@@ -302,7 +323,7 @@ void loop() {
 
   read_all();
 
-  // stop ventilator and measurement if interval more than 60 seconds
+  // stop fan and measurement if interval more than 60 seconds
   // you can adjust this to your needs, but 8 seconds (10 sec. to be save)
   // is needed to restart from idle mode (datasheet page 2)
   if (Interval >= 60000) {
@@ -344,7 +365,7 @@ void GetDeviceInfo()
 }
 
 //****************************************************************
-//**        read and display all SPS30 values                   **     
+//**        read and display all SPS30 and BME280 values        **     
 //****************************************************************
 bool read_all()
 {
@@ -375,16 +396,26 @@ bool read_all()
 
   // only print header first time
   if (header) {
-    DEBUG_STREAM.println(F("----------------------------Mass -----------------------------    -------------------------------- Number --------------------------------------       --Partsize --"));
-    DEBUG_STREAM.println(F("                     Concentration [μg/m3]                                                 Concentration [#/cm3]                                           [μm]  "));
+    DEBUG_STREAM.print(F("===================================================================== SPS30 ========================================================================================="));
+    DEBUG_STREAM.println(F("\t   =============== BME280 ================"));
+    
+    DEBUG_STREAM.print(F("----------------------------Mass -----------------------------    -------------------------------- Number --------------------------------------       --Partsize --"));
+    DEBUG_STREAM.println(F("\t   Press\t  Humidity\tTemperature"));
+    
+    DEBUG_STREAM.print(F("                     Concentration [μg/m3]                                                 Concentration [#/cm3]                                           [μm]  "));
+    DEBUG_STREAM.println(F("\t   [Hpa]\t    [%]\t\t    *C"));
     DEBUG_STREAM.println(F(" PM1.0             PM2.5           PM4.0           PM10             PM0.5           PM1.0           PM2.5           PM4.0              PM10               Typical"));
+    
     header = false;
   }
+  
+  ReadBME280();
 
   print_aligned((double) val.MassPM1, 8, 5);   print_aligned((double) val.MassPM2, 8, 5);  print_aligned((double) val.MassPM4, 8, 5);
   print_aligned((double) val.MassPM10, 8, 5);  print_aligned((double) val.NumPM0, 9, 5);   print_aligned((double) val.NumPM1, 9, 5);
   print_aligned((double) val.NumPM2, 9, 5);    print_aligned((double) val.NumPM4, 9, 5);   print_aligned((double) val.NumPM10, 15, 5);
-  print_aligned((double) val.PartSize, 7, 5);  DEBUG_STREAM.print(F("\n"));
+  print_aligned((double) val.PartSize, 7, 5);  print_aligned((double) b_pressure, 7, 2);   print_aligned((double) b_humidity, 7, 2); 
+  print_aligned((double) b_temperature, 7, 2);  DEBUG_STREAM.print(F("\n"));
 
   // collect data for AllThingsTalk
   TotalMassPM1 += val.MassPM1;

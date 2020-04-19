@@ -41,13 +41,15 @@ The projects :
 ### Example 1 : SPS30 sensor to SODAQ and Allthingstalk.
 ### Example 2 : SPS30 sensor + BME280 to SODAQ and Allthingstalk.
 ### Example 3 : Detect turning, shacking and tilting the board with Accelerator.
+### Example 4 : SPS30 sensor + DS18x20 to SODAQ and Allthingstalk.
+### Example 7 : SPS30 sensor + SCD30 to SODAQ and Allthingstalk.
 
 <br> Many of the examples have a .odt (open document) file in the folder.
 This contains more detailed information about the setup and project. They
 can be read with nearly any word processor (LibreOffice, Microsoft word etc)
 
 ## Prerequisites
-Documented in the top of each sketch.
+Documented in the top of each sketch and open document in folder
 
 ## Software installation
 Obtain the zip and install like any other
@@ -60,6 +62,10 @@ Please see the description in the top of the sketch and read the documentation (
 
 ### version 1.0 / April 2020
  * Initial version with Example1, Example2 and Example3
+
+### version 1.0.1 / April 2020
+ * Update to example1, example2 (added SPS30 can be connected serial)
+ * Added example4 and example7
 
 ## Author
  * Paul van Haastrecht (paulvha@hotmail.com)

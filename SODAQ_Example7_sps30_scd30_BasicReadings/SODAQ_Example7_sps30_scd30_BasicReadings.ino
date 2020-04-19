@@ -13,46 +13,56 @@
  *   https://github.com/SodaqMoja/Sodaq_R4X
  *   https://github.com/SodaqMoja/Sodaq_wdt
  *   -requires at least SPS30 driver version 1.3.10 https://github.com/paulvha/sps30
+ *   -requires the latest SCD30 library:  https://github.com/paulvha/scd30
  *
  *  =========================  Highlevel description ================================
  *
- *  This basic reading example sketch will connect to an SPS30 for getting data and
+ *  This basic reading example sketch will connect to an SPS30 & SCD30 for getting data and
  *  display the available data. It will also connect with a SODAQ SARA to AllThingsTalk
- *  and display the SPS30-id, Mass1, Mass2, Mass10 values 
+ *  and display the SPS30-id, Mass1, Mass2, Mass10, Humidity, CO2 and Temperature values
  */  
- // ************* for detailed setup see Example1.odt in this folder ****************** 
+ // ************* for detailed setup see Example7.odt in this folder ****************** 
 /* 
  *  ============================ HARDWARE CONNECTION ==================================
+ *  
  *  Successfully tested on SODAQ SARA/AFF
+ *  Serial and I2C
  *  
- *  Serial
- *  
- *  SPS30 pin     SODAQ
- *  1 VCC -------   5V
- *  2 RX -------- 1 TX 
- *  3 TX -------- 0 RX 
- *  4 Select-----     NOT CONNECTED (Select Serial)
- *  5 GND -------   GND
+ *  SPS30 pin     SCD30         SODAQ
+ *  1 VCC -------- 1 VDD -------   5V
+ *  2 RX ----------------------- 1 TX 
+ *  3 TX ----------------------- 0 RX 
+ *  4 Select------------ --------     NOT CONNECTED (Select Serial)
+ *  5 GND ---------2 GND--------   GND
+ *                 3 SCL -------   SCL (next to SCL/ARF NOT A5 / SCL1)
+ *                 4 SDA -------   SDA (next to ARF     NOT A4 / SDA1)
+ *                 5 RDY -------      NOT CONNECTED
+ *                 6 PWM -------      NOT CONNECTED
+ *                 7 SEL -------      NOT CONNECTED
  *  
  *  SELECT SP30_COMMS SERIALPORT
  *-----------------------------------------------------------------------------------
- *  I2C ONLY   
- *  As documented in the datasheet, make sure to use external 10K pull-up resistor on
- *  both the SDA and SCL lines. Otherwise the communication with the sensor will fail random.
- *  When connecting as indicated below TO SDA AND SCL those pull-up resistors are already 
- *  on the SODAQ board.
- *
- *  SPS30 pin     SODAQ
- *  1 VCC -------- 5V
- *  2 SDA -------- SDA (next to ARF     NOT A4 / SDA1)
- *  3 SCL -------- SCL (next to SCL/ARF NOT A5/ SCL1)
- *  4 Select ----- GND (select I2c)
- *  5 GND -------- GND
+ *  I2C ONLY 
+ *  As documented in the datasheet, make sure to use external min 4K7 to 10K pull-up 
+ *  resistor on both the SDA and SCL lines. Otherwise the communication with the SPS30 
+ *  sensor will fail random. When connecting as indicated below to SDA AND SCL those 
+ *  pull-up resistors are already on the SODAQ board.
  *  
+ *  SPS30 pin     SCD30         SODAQ
+ *  1 VCC -------- 1 VDD ------- 5V
+ *  2 SDA -------- 4 SDA --------SDA (next to ARF     NOT A4 / SDA1)
+ *  3 SCL -------- 3 SCL --------SCL (next to SCL/ARF NOT A5 / SCL1)
+ *  4 Select ----- 2 GND --------GND (SPS30 select I2c)
+ *  5 GND ---------------------- GND
+ *                 5 RDY -------      NOT CONNECTED
+ *                 6 PWM -------      NOT CONNECTED
+ *                 7 SEL -------      NOT CONNECTED
+ *
  *  SELECT SP30_COMMS I2C_COMMS
+ *          
  *  ================================= PARAMETERS =====================================
  *
- *  From line 79 there are configuration parameters for the program.
+ *  From line 90 there are configuration parameters for the program.
  */
  //###################################################################################
  // !!!!!!!!!!!!!! Also update the attached keys.h file with device information !!!!!!
@@ -75,6 +85,7 @@
 #include "sps30.h"
 #include "keys.h"
 #include <avr/dtostrf.h>
+#include "paulvha_SCD30.h"
 
 //*****************************************************************
 //**                SELECT SPS30 connection (see above)          **
@@ -111,8 +122,20 @@
 //* 2 : 1 + show protocol errors   (SPS30 only)                  **
 //*****************************************************************
 #define SPS30_DEBUG 0
+#define SCD30_DEBUG 0     // see NOTE 1
 #define SODAQ_DEBUG 0
 #define SKETCH_DEBUG 0
+
+/* NOTE 1: requires a change in the file paulvha_scd30_library/src/printf.h
+ * change line 29 :  #define _Stream_Obj_                Serial
+ * to                #define _Stream_Obj_                SerialUSB
+ */
+ 
+//////////////////////////////////////////////////////////////
+/* Define display in Fahrenheit or Celsius
+ *  1 = Celsius
+ *  0 = Fahrenheit */
+#define TEMP_TYPE 1
 
 //*****************************************************************
 //*        measurement constants                                 **     
@@ -160,6 +183,7 @@
 //*********************** CONSTRUCTORS ****************************
 SPS30 sps30;
 Sodaq_R4X r4x;
+SCD30 airSensor;
 
 //********************** GLOBAL VARIABLES *************************
 
@@ -171,7 +195,14 @@ float TotalMassPM1  = 0;
 float TotalMassPM2  = 0;
 float TotalMassPM10 = 0;
 uint32_t SampleCnt  = 0;
-String SPS_id;    // SPS30 ID, will be set to last 4 digits serial number 
+String SPS_id;     // SPS30 ID, will be set to last 4 digits serial number
+
+float SCD_hum = 0;
+float SCD_tmp = 0;
+float SCD_TotalCO2 = 0;
+
+// status
+bool SCD30_detected = false;
 
 unsigned long startMillis;   // Used to keep track of send interval
 bool header = true;          // display header
@@ -197,11 +228,17 @@ void sendMessageThroughUDP()
     
     String deviceId = DEVICE_ID;    // defined in keys.h
     String token = DEVICE_TOKEN;
+    
+    if (SampleCnt == 0) SampleCnt = 1; 
+    
     // create JSON values
     String value =  "{\"ID\":{\"value\":\"" + String(SPS_id) + "\"}";
            value += ",\"M1\":{\"value\":" + String(TotalMassPM1 / SampleCnt) +"}";
            value += ",\"M2\":{\"value\":" + String(TotalMassPM2 / SampleCnt) +"}";
-           value += ",\"M10\":{\"value\":" + String(TotalMassPM10 / SampleCnt) +"}}";
+           value += ",\"M10\":{\"value\":" + String(TotalMassPM10 / SampleCnt) +"}";
+           value += ",\"CO2\":{\"value\":" + String(SCD_TotalCO2 / SampleCnt) +"}";
+           value += ",\"HUM\":{\"value\":" + String(SCD_hum) +"}";
+           value += ",\"TEMP\":{\"value\":" + String(SCD_tmp) +"}}";
 
     String reading = deviceId + '\n' + token + '\n' + value;
 
@@ -211,7 +248,7 @@ void sendMessageThroughUDP()
 
     // only reset if succesfull
     if (rsize == lengthSent) {
-      TotalMassPM1 = 0; TotalMassPM2 = 0; TotalMassPM10 = 0; SampleCnt = 0;
+      SCD_TotalCO2 = TotalMassPM1 = TotalMassPM2 = TotalMassPM10 = 0; SampleCnt = 0; 
       startMillis = millis(); 
       setLight(OFF);
     }
@@ -234,11 +271,13 @@ void setup() {
    
   DEBUG_STREAM.begin(DEBUG_STREAM_BAUD);
  
-  if (SKETCH_DEBUG) serialTrigger((char *) "SPS30-SODAQ-Example1: Basic reading. press <enter> to start");
+  if (SKETCH_DEBUG) serialTrigger((char *) "SPS30-SODAQ-Example7: Reading with SCD30. press <enter> to start");
 
   InitLed(); 
   
   setLight(YELLOW);     InitSpS30();
+
+  setLight(GREEN);      InitSCD30();
   
   setLight(BLUE);       InitSodaq();
 
@@ -258,7 +297,7 @@ void setup() {
 void loop() {
   static uint8_t StillAlive = 0;
   unsigned long ElapseCnt, Interval = MEASUREINTERVAL;
-  bool SPS30_idle = false;
+  static bool SPS30_idle = false;
 
   // if stopped as Measurement Interval was above limit, restart first.
   // startup time is less than 8 seconds, 10 has been taken to be save
@@ -276,7 +315,7 @@ void loop() {
     sendMessageThroughUDP();
     Interval = MEASUREINTERVAL;  
     
-    if (SKETCH_DEBUG || SPS30_DEBUG || SODAQ_DEBUG)
+    if (SKETCH_DEBUG || SPS30_DEBUG || SODAQ_DEBUG || SCD30_DEBUG)
        header = true;   // re-print header only if debug messages were shown
   }
   else {
@@ -291,11 +330,12 @@ void loop() {
     delay(1000);
     setLight(OFF);
     StillAlive = 0;
+    if (Interval > 1000)  Interval -= 1000;   // because we did wait to blink..
   }
   
   read_all(); 
   
-  // stop ventilator and measurement if interval more than 60 seconds
+  // stop fan and measurement if interval more than 60 seconds
   // you can adjust this to your needs, but 8 seconds (10 sec. to be save)
   // is needed to restart from idle mode (datasheet page 2)
   if (Interval >= 60000) {
@@ -336,11 +376,12 @@ void GetDeviceInfo() {
 }
 
 //*********************************************************
-//**        read and display all SPS30 values            **     
+//**        read and display all SPS30 / SCD30 values    **     
 //*********************************************************
 bool read_all() {
   uint8_t ret, error_cnt = 0;
   struct sps_values val;
+  float SCD_co2 = 0;
 
   // loop to get data
   do {
@@ -366,17 +407,46 @@ bool read_all() {
 
   // only print header first time
   if (header) {
-    DEBUG_STREAM.println(F("----------------------------Mass -----------------------------    -------------------------------- Number --------------------------------------       --Partsize --"));
-    DEBUG_STREAM.println(F("                     Concentration [μg/m3]                                                 Concentration [#/cm3]                                           [μm]  "));
-    DEBUG_STREAM.println(F(" PM1.0             PM2.5           PM4.0           PM10             PM0.5           PM1.0           PM2.5           PM4.0              PM10               Typical"));
+    
+    DEBUG_STREAM.print(F("===================================================================== SPS30 ========================================================================================="));
+    if(SCD30_detected) DEBUG_STREAM.print(F("\t\t========= SCD30 =========="));
+    DEBUG_STREAM.print(F("\n----------------------------Mass -----------------------------    -------------------------------- Number --------------------------------------       --Partsize --"));
+    
+    if(SCD30_detected) DEBUG_STREAM.print(F("\t\tCO2   Humidity Temperature"));
+    
+    DEBUG_STREAM.print(F("\n                     Concentration [μg/m3]                                                 Concentration [#/cm3]                                           [μm]  "));
+    
+    if(SCD30_detected) {
+      DEBUG_STREAM.print(F("\t\t[ppm]    [%]      "));
+
+      if (TEMP_TYPE) DEBUG_STREAM.print(F("[*C]"));
+      else DEBUG_STREAM.print(F("[*F]"));
+    }   
+    DEBUG_STREAM.println(F("\n PM1.0             PM2.5           PM4.0           PM10             PM0.5           PM1.0           PM2.5           PM4.0              PM10               Typical"));
     header = false;
   }
 
   print_aligned((double) val.MassPM1, 8, 5);   print_aligned((double) val.MassPM2, 8, 5);  print_aligned((double) val.MassPM4, 8, 5);
   print_aligned((double) val.MassPM10, 8, 5);  print_aligned((double) val.NumPM0, 9, 5);   print_aligned((double) val.NumPM1, 9, 5);
   print_aligned((double) val.NumPM2, 9, 5);    print_aligned((double) val.NumPM4, 9, 5);   print_aligned((double) val.NumPM10, 15, 5);
-  print_aligned((double) val.PartSize, 7, 5);  DEBUG_STREAM.print(F("\n"));
+  print_aligned((double) val.PartSize, 7, 5);
 
+  if(SCD30_detected) {
+    
+    SCD_co2 = airSensor.getCO2();
+    SCD_TotalCO2 += SCD_co2;    
+    
+    if (TEMP_TYPE) SCD_tmp = airSensor.getTemperature();
+    else SCD_tmp =  airSensor.getTemperatureF();
+    
+    SCD_hum = airSensor.getHumidity();
+    
+    DEBUG_STREAM.print(F("\t  ")); DEBUG_STREAM.print(SCD_co2,0); DEBUG_STREAM.print(F("\t "));
+    DEBUG_STREAM.print(SCD_hum, 1); DEBUG_STREAM.print(F("\t  ")); DEBUG_STREAM.print(SCD_tmp, 2);
+  }
+  
+  DEBUG_STREAM.print(F("\n"));
+  
   // collect data for AllThingsTalk
   TotalMassPM1 += val.MassPM1;
   TotalMassPM2 += val.MassPM2;
@@ -426,6 +496,39 @@ void InitSpS30() {
 
   // read device info
   GetDeviceInfo();
+}
+
+//****************************************************************
+//**                   INITIALIZE SCD30                         **
+//****************************************************************
+void InitSCD30() {
+
+  char buf[30];
+   
+  // set SCD30
+  airSensor.setDebug(SCD30_DEBUG);
+
+  // This will init the wire, but NOT start reading
+  if ( ! airSensor.begin(Wire,false) )
+    DEBUG_STREAM.println(F("cound not start SCD30"));
+  else
+  {
+    DEBUG_STREAM.print(F("Detected SCD30 "));
+
+    if (airSensor.getSerialNumber(buf))
+    {
+      DEBUG_STREAM.print(F("Serial number: "));
+      DEBUG_STREAM.println(buf);
+    }
+    else
+      DEBUG_STREAM.println(F("could not read serial number"));
+  }
+
+  // This will cause readings to occur every two seconds
+  if (! airSensor.begin() )
+    DEBUG_STREAM.println(F("cound not start SCD30"));
+  else
+    SCD30_detected = true;
 }
 
 //****************************************************************
