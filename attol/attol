@@ -8,8 +8,8 @@
 #################################################################
 
 # AllThingsTalk authorisation
-ATT_DEVICE_ID="ZgOwGcS8J7MbR8xKxWTrdeqN"
-ATT_DEVICE_TOKEN="vodafone:4Vkw2VwzmGR9G0lqFyS9RSZLZkeenOY2uBARdhs"
+ATT_DEVICE_ID="your_device_ID"
+ATT_DEVICE_TOKEN="vodafone:your_token"
 
 # Config File
 ATTOL_CONFIG="attolconfig"
@@ -27,5 +27,5 @@ ATTOL_CONFIG="attolconfig"
 
 # the password 'bfnbayv9' is not real, it is not used by ATT, but if a password is omitted an error message will happen.
 
-/usr/local/bin/mosquitto_sub -h 'api.allthingstalk.io' -t device/$ATT_DEVICE_ID/asset/+/feed -u $ATT_DEVICE_TOKEN -P 'bfnbayv9' -v | ATToL -c $ATTOL_CONFIG
+mosquitto_sub -h 'api.allthingstalk.io' -t device/$ATT_DEVICE_ID/asset/+/feed -u $ATT_DEVICE_TOKEN -P 'bfnbayv9' -v | ATToL -c $ATTOL_CONFIG
 
