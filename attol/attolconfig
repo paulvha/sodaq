@@ -1,0 +1,29 @@
+# configuration file for AllthingsTalk to Luftdaten
+# build with Version 1.0
+
+# The payload encoding / decoding file
+encoding=att_to_luft
+
+# Luftdaten server URL (leave empty to disable sending)
+luftdaten.url=https://api.sensor.community/v1/push-sensor-data/
+
+# Luftdaten Sensor_UID (e.g. TTN-3646575)
+Sensor_UID=TTN-3646575
+
+#Luftdaten timeout (sec)
+luftdaten.timeout=10
+
+# name for local data files (leave empty to disable local filesaving)
+storage.file=/tmp/attol
+
+# Format date extension for local data file (leave empty to disable adding extension)
+# YY - year, MM - month, DD = day of month, HH - hour of day (0 - 23)
+# A new file will be created based on the lowest time element selected (e.g. YYMMDD - every day, YYMMDDHH - every hour)
+file.ext=YYMMDD
+
+# maximum timeout between receiving first data from ATT and sending to Luftdaten (seconds)
+time_out=10
+
+# Debug messages
+# 0 will show program log only, 1 will enable data flow messages, 2 will show more including debug curl
+enable.dbg=0

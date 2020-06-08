@@ -42,7 +42,9 @@ The projects :
 ### Example 2 : SPS30 sensor + BME280 to SODAQ and Allthingstalk.
 ### Example 3 : Detect turning, shacking and tilting the board with Accelerator.
 ### Example 4 : SPS30 sensor + DS18x20 to SODAQ and Allthingstalk.
+### Example 5 : SPS30 sensor + DHT-11 to SODAQ and Allthingstalk.
 ### Example 7 : SPS30 sensor + SCD30 to SODAQ and Allthingstalk.
+### attol     : ATT forwarder to Luftdaten
 
 <br> Many of the examples have a .odt (open document) file in the folder.
 This contains more detailed information about the setup and project. They
@@ -66,6 +68,10 @@ Please see the description in the top of the sketch and read the documentation (
 ### version 1.0.1 / April 2020
  * Update to example1, example2 (added SPS30 can be connected serial)
  * Added example4 and example7
+
+### version 2.0 / June 2020
+ * Added example5 + Documentation
+ * Added MQTT forwarder AllThingsTalk to Luftdaten (attol)
 
 ## Author
  * Paul van Haastrecht (paulvha@hotmail.com)

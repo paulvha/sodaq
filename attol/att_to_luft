@@ -1,0 +1,20 @@
+# Encoding the data from AllTHingsTalk and decoding for Luftdaten
+#
+# sample received data from ATT:
+# device/HYTQYs9Y757XSoNNgRQRTYYs0N/asset/ID/feed {"at":"2020-05-24T18:29:22.56146Z","value":"1A76"}
+# device/HYTQYs9Y757XSoNNgRQRTYYs0N/asset/M10/feed {"at":"2020-05-24T18:30:25.24698Z","value":12.69}
+
+# from AllThingsTalk (ATT)
+# search_argument : argument to look for after 'asset/' : e.g. M10 or ID in above exsamples
+# NOTE : timestamp will be ignored only e.g. : "value":12.69 will be re-used.
+
+# to Luftdaten
+# luftdaten_sensor_pin : pin of the sensor-type to use
+# luftdaten_value_type : value_type on sensor : like P1 or humidity,temperature, P2.5 as used in Luftdaten for the sensor
+
+# Format of each line
+# search_argument:luftdaten_sensor_pin:luftdaten_value_type
+# example:  M1:1:P1 means take value from M1 from ATT and store that on Luftdaten to sensor-pin 1 with value-type P1
+M1:1:P1
+
+

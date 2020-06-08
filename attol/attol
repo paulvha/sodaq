@@ -1,0 +1,31 @@
+# ! /bin/sh
+
+# Will read all the data from a sensor on AllThingsTalk (ATT) and upload to Luftdaten
+# version 1.0 / paulvha / May 2020
+
+#################################################################
+# USER SETTINGS
+#################################################################
+
+# AllThingsTalk authorisation
+ATT_DEVICE_ID="ZgOwGcS8J7MbR8xKxWTrdeqN"
+ATT_DEVICE_TOKEN="vodafone:4Vkw2VwzmGR9G0lqFyS9RSZLZkeenOY2uBARdhs"
+
+# Config File
+ATTOL_CONFIG="attolconfig"
+
+# ================================================================
+# Make sure to update the configuration and encoding files as well
+# ================================================================
+
+#################################################################
+# NO NEED FOR CHANGE BEYOND THIS POINT
+#################################################################
+
+# The '+' in 'device/$ATT_DEVICE_ID/asset/+/feed' means that all value-types are extracted from ATT, but only those mapped in the
+# encoding file will be forwarder to Luftdaten.
+
+# the password 'bfnbayv9' is not real, it is not used by ATT, but if a password is omitted an error message will happen.
+
+/usr/local/bin/mosquitto_sub -h 'api.allthingstalk.io' -t device/$ATT_DEVICE_ID/asset/+/feed -u $ATT_DEVICE_TOKEN -P 'bfnbayv9' -v | ATToL -c $ATTOL_CONFIG
+
