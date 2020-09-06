@@ -6,7 +6,7 @@
  *
  *  SPS30 Version 1.1.1 Paul van Haastrecht / March 2020
  *  - Fixed compile errors and warnings.
- *  
+ *
  *  Version 2.0 Paul van Haastrecht / April 2020
  *   -Version for Sodaq and AllThingsTalk
  *   -requires the following SODAQ drivers :
@@ -18,40 +18,40 @@
  *  - added T-Mobile for Sodaq
  *  - added ABCL and CBOR data format
  *  - if CBOR is enabled https://github.com/telecombretagne/YACL is needed
- *  
+ *
  *  =========================  Highlevel description ================================
  *
  *  This basic value example sketch will connect to an SPS30 for getting data and
- *  display the available data. 
+ *  display the available data.
  *  In case of vodafone :
  *  It will also connect with a SODAQ SARA to AllThingsTalk
- *  and display the SPS30-id, Mass1, Mass2, Mass10 values 
- *  
+ *  and display the SPS30-id, Mass1, Mass2, Mass10 values
+ *
  *  In case of T-mobile :
  *  It will connect with a SODAQ to CDG platform from T-Mobile
- *  Data can be forwarded to AllTHingsTalk following instructions 
+ *  Data can be forwarded to AllTHingsTalk following instructions
  *  from https://docs.iotcreators.com/docs/integration-with-allthingstalk
- */  
- // ************* for detailed setup see Example1.odt in this folder ****************** 
-/* 
+ */
+ // ************* for detailed setup see Example1.odt in this folder ******************
+/*
  *  ============================ HARDWARE CONNECTION ==================================
  *  Successfully tested on SODAQ SARA/AFF
- *  
+ *
  *  Serial
- *  
+ *
  *  SPS30 pin     SODAQ
  *  1 VCC -------   5V
- *  2 RX -------- 1 TX 
- *  3 TX -------- 0 RX 
+ *  2 RX -------- 1 TX
+ *  3 TX -------- 0 RX
  *  4 Select-----   NOT CONNECTED (Select Serial)
  *  5 GND -------   GND
- *  
+ *
  *  SELECT SP30_COMMS SERIALPORT
  *-----------------------------------------------------------------------------------
- *  I2C ONLY   
+ *  I2C ONLY
  *  As documented in the datasheet, make sure to use external 10K pull-up resistor on
  *  both the SDA and SCL lines. Otherwise the communication with the sensor will fail random.
- *  When connecting as indicated below TO SDA AND SCL those pull-up resistors are already 
+ *  When connecting as indicated below TO SDA AND SCL those pull-up resistors are already
  *  on the SODAQ board.
  *
  *  SPS30 pin     SODAQ
@@ -60,7 +60,7 @@
  *  3 SCL -------- SCL (next to SDA/ARF NOT A5/ SCL1)
  *  4 Select ----- GND (select I2c)
  *  5 GND -------- GND
- *  
+ *
  *  SELECT SP30_COMMS I2C_COMMS
  *  ================================= PARAMETERS =====================================
  *
@@ -72,22 +72,22 @@
  //###################################################################################
  /*
  *  ================================ Disclaimer ======================================
- *  
+ *
  * Parts of the code have been taken from public available SODAQ example programmes :
- * 
+ *
  * Copyright (c) 2019, SODAQ
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice,
  * this list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of the copyright holder nor the names of its contributors
  * may be used to endorse or promote products derived from this software without
  * specific prior written permission.
@@ -103,7 +103,7 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
@@ -113,7 +113,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *  ===================================================================================
  *
- * NO support, delivered as is, have fun, good luck !!  
+ * NO support, delivered as is, have fun, good luck !!
  */
 #include "Sodaq_pvh.h"
 #include "sps30.h"
@@ -145,11 +145,11 @@
 //**                SELECT PROVIDER INFORMATION                  **
 //*****************************************************************
 
-// NL VODAFONE NB-IoT 
+// NL VODAFONE NB-IoT
 //*
  const char* provider = "NL VODAFONE NB-IoT";
  const char* apn = "nb.inetd.gdsp";
- const char* forceOperator = "20404"; 
+ const char* forceOperator = "20404";
  const char* urat = "8";
  const char* API_ENDPOINT = "api.allthingstalk.io";
  const uint16_t API_PORT = 8891;
@@ -162,7 +162,7 @@ Select_Operator Operator  = S_VODAFONE;     // use Jason format
 /*
 const char* provider = "NL VODAFONE LTE-M";
 const char* apn = "live.vodafone.com";
-const char* forceOperator = "20404"; 
+const char* forceOperator = "20404";
 const char* urat = "7";
 const uint16_t API_PORT = 8891;
 
@@ -175,7 +175,7 @@ Select_Operator Operator  = S_VODAFONE;     // use Jason format
 /*
 const char* provider = "NL KPN";
 const char* apn = "internet.m2m";
-const char* forceOperator = "20408"; 
+const char* forceOperator = "20408";
 const uint16_t API_PORT = 8891;
 Select_Operator Operator  = S_KPN;
 Select_Operator Operator  = S_KPN;     // use Jason format
@@ -183,11 +183,11 @@ Select_Operator Operator  = S_KPN;     // use Jason format
 //Select_Operator Operator  = S_KPN_C;  // use CBOR format
 */
 
-// NL T-Mobile 
+// NL T-Mobile
 /*
  const char* provider = "NL T-MOBILE NB-IoT";
  const char* apn = "cdp.iot.t-mobile.nl";
- const char* forceOperator = "20416"; 
+ const char* forceOperator = "20416";
  const char* urat = "8";
  const char* API_ENDPOINT = "172.27.131.100";
  const uint16_t API_PORT = 15683;
@@ -198,9 +198,9 @@ Select_Operator Operator  = S_TMOBILE;     // use Jason format
 */
 
 //*****************************************************************
-//* Define debug messages                                        **     
-//* 0 : no messages                                              **     
-//* 1 : request sending and receiving                            **     
+//* Define debug messages                                        **
+//* 0 : no messages                                              **
+//* 1 : request sending and receiving                            **
 //* 2 : 1 + show protocol errors      (SPS30 only)               **
 //*****************************************************************
 #define SPS30_DEBUG 0
@@ -208,7 +208,7 @@ Select_Operator Operator  = S_TMOBILE;     // use Jason format
 #define SKETCH_DEBUG 0
 
 //*****************************************************************
-//*        measurement constants                                 **     
+//*        measurement constants                                 **
 //*****************************************************************
 #define MEASUREMENTPERIOD  60000     // time between sending update to AllThingsTalk (ms) (60000 = 60 sec)
 #define MEASUREINTERVAL    5000      // delay between measurement in mS (5000 = 5 seconds)
@@ -262,15 +262,15 @@ Sodaq_R4X r4x;
 //********************** GLOBAL VARIABLES *************************
 
 // contains pointers to driver on / off routines
-static Sodaq_SARA_R4XX_OnOff saraR4xxOnOff;   
+static Sodaq_SARA_R4XX_OnOff saraR4xxOnOff;
 
 float TotalMassPM1  = 0;    // capture data for sending
 float TotalMassPM2  = 0;
 float TotalMassPM10 = 0;
 uint32_t SampleCnt  = 0;
 
-char SPS_id[SPSID +1];       // last digits (default 4) serial number + 0x0 
-uint8_t SendBuf[100];        // will contain the UDP package to be sent
+char SPS_id[SPSID +1];       // last digits (default 4) serial number + 0x0
+uint8_t SendBuf[512];        // will contain the UDP package to be sent
 String TempBuf;              // temp space
 uint8_t cnt;                 // number of bytes in SendbBuf
 
@@ -294,11 +294,11 @@ void sendMessageThroughUDP()
   }
 
   if (SKETCH_DEBUG) DEBUG_STREAM.println("Created socket!");
-  
+
   setLight(GREEN);   // indicate sending
 
   //**************** create payload ***********************
- 
+
   if (Operator == S_VODAFONE || Operator == S_VODAFONE_A || Operator == S_VODAFONE_C){
 
     // add AllThingsTalk credentials
@@ -307,7 +307,7 @@ void sendMessageThroughUDP()
     TempBuf = deviceId + '\n' + token + '\n';
 
     for(cnt = 0 ; cnt < TempBuf.length(); cnt++)  SendBuf[cnt] = TempBuf[cnt];
-    
+
     if (Operator == S_VODAFONE ) JASON_DataPayload();
     else if (Operator == S_VODAFONE_A) ABCL_DataPayload();
     else CBOR_DataPayload();
@@ -317,7 +317,7 @@ void sendMessageThroughUDP()
     cnt = 0;
     JASON_DataPayload();
   }
-  
+
   else if (Operator == S_TMOBILE_A){
     cnt = 0;
     ABCL_DataPayload();
@@ -337,28 +337,28 @@ void sendMessageThroughUDP()
   //*************** send to provider ******************
   int lengthSent = r4x.socketSend(socketID, API_ENDPOINT, API_PORT, SendBuf, cnt);
   r4x.socketClose(socketID);
-  
+
   // only reset if succesfull
   if (cnt == lengthSent) {
     TotalMassPM1 = 0; TotalMassPM2 = 0; TotalMassPM10 = 0; SampleCnt = 0;
-    startMillis = millis(); 
+    startMillis = millis();
     setLight(OFF);
   }
   else {
     if (SKETCH_DEBUG) DEBUG_STREAM.println("Error during sending");
     setLight(RED);    // indicate error
   }
-  
+
   if (SKETCH_DEBUG)  {
-    
-    DEBUG_STREAM.print("data sent: (HEX)  0x"); 
+
+    DEBUG_STREAM.print("data sent: (HEX)  0x");
     for (byte i= 0; i < cnt; i++) {
       if (SendBuf[i] < 0x10) DEBUG_STREAM.print("0");
-      DEBUG_STREAM.print(SendBuf[i], HEX); 
+      DEBUG_STREAM.print(SendBuf[i], HEX);
       DEBUG_STREAM.print(" ");
     }
-    
-    DEBUG_STREAM.print("\ndata sent: (ASCII)   "); 
+
+    DEBUG_STREAM.print("\ndata sent: (ASCII)   ");
     for (byte i= 0; i < cnt; i++) {
       if (SendBuf[i] > 0x1f && SendBuf[i] < 0x7f){
         DEBUG_STREAM.print( (char) SendBuf[i]);
@@ -366,7 +366,7 @@ void sendMessageThroughUDP()
       }
       else DEBUG_STREAM.print("?  ");
     }
-         
+
     DEBUG_STREAM.print("\nLength buffer vs sent:"); DEBUG_STREAM.print(cnt); DEBUG_STREAM.print(",");
     DEBUG_STREAM.println(lengthSent); DEBUG_STREAM.println();
   }
@@ -377,7 +377,7 @@ void sendMessageThroughUDP()
 //***********************************************************
 void CBOR_DataPayload()
 {
-#ifdef INCLUDE_CBOR  
+#ifdef INCLUDE_CBOR
   // Data is a dictionary of key/values, which corresponds to CBORPair objects
   // Thus, we create a CBORPair, and reserve a buffer of 50 bytes for it.
   // This is not mandatory, as CBORPair can reallocate a bigger buffer on the
@@ -403,12 +403,12 @@ void CBOR_DataPayload()
 //*            add JASON data format                       **
 //***********************************************************
 void JASON_DataPayload(){
-  
+
   TempBuf =  "{\"ID\":{\"value\":\"" + String(SPS_id) + "\"}";
   TempBuf += ",\"M1\":{\"value\":" + String(TotalMassPM1 / SampleCnt) +"}";
   TempBuf += ",\"M2\":{\"value\":" + String(TotalMassPM2 / SampleCnt) +"}";
   TempBuf += ",\"M10\":{\"value\":" + String(TotalMassPM10 / SampleCnt) +"}}";
-  
+
   // copy result to sent buffer
   for(uint8_t i = 0 ; i < TempBuf.length(); i++)  SendBuf[cnt++] = TempBuf[i];
 }
@@ -420,7 +420,7 @@ void ABCL_DataPayload()
 {
   // add ID
   for (uint8_t i = 0; i < SPSID; i++)  SendBuf[cnt++] = SPS_id[i];
- 
+
   // add value
   add_float(TotalMassPM1 / SampleCnt);
   add_float(TotalMassPM2 / SampleCnt);
@@ -442,21 +442,21 @@ void add_float(float c)
 //**                  SETUP FUNCTIONS                        **
 //*************************************************************
 void setup() {
-  
+
   sodaq_wdt_safe_delay(STARTUP_DELAY);
-  
-  InitLed(); 
-   
+
+  InitLed();
+
   DEBUG_STREAM.begin(DEBUG_STREAM_BAUD);
- 
-  if (SKETCH_DEBUG || SPS30_DEBUG || SODAQ_DEBUG) 
+
+  if (SKETCH_DEBUG || SPS30_DEBUG || SODAQ_DEBUG)
     serialTrigger((char *) "SPS30-SODAQ-EXAMPLE1 : Basic values. press <enter> to start");
 
-#ifndef INCLUDE_CBOR  
+#ifndef INCLUDE_CBOR
   if (Operator == S_VODAFONE_C || Operator == S_TMOBILE_C || Operator == S_KPN_C)
   Errorloop((char *)"REQUESTED CBOR HAS NOT BEEN SELECTED TO BE INCLUDED",0);
 #endif
-   
+
   if (Operator == S_VODAFONE || Operator == S_TMOBILE || Operator == S_KPN)
     DEBUG_STREAM.println(F("Sending in Jason data format"));
 
@@ -470,24 +470,24 @@ void setup() {
     Errorloop((char *) "Unknown Data format", 0);
 
   setLight(YELLOW);     InitSpS30();
-  
+
   setLight(BLUE);       InitSodaq();
 
   setLight(OFF);
 
   // start measurement
   if (! sps30.start() ) Errorloop((char *) "Could NOT start measurement", 0);
-    
+
   DEBUG_STREAM.println(F("Measurement started"));
 
-  startMillis = millis();           // Saves the initial millis value 
+  startMillis = millis();           // Saves the initial millis value
 }
 
 //*************************************************************
 //**                   LOOP FUNCTIONS                        **
 //*************************************************************
 void loop() {
-  
+
   static uint8_t StillAlive = 0;
   unsigned long ElapseCnt, Interval = MEASUREINTERVAL;
   static bool SPS30_idle = false;
@@ -499,20 +499,20 @@ void loop() {
     if (! sps30.start() )  Errorloop((char *) "Could NOT start measurement", 0);
     delay(10000);
     SPS30_idle = false;
-    Interval = MEASUREINTERVAL; 
+    Interval = MEASUREINTERVAL;
   }
-  
+
   ElapseCnt = millis() - startMillis;
-  
-  if (ElapseCnt >= MEASUREMENTPERIOD) { 
+
+  if (ElapseCnt >= MEASUREMENTPERIOD) {
     sendMessageThroughUDP();
-    Interval = MEASUREINTERVAL;  
-    
+    Interval = MEASUREINTERVAL;
+
     if (SKETCH_DEBUG || SPS30_DEBUG || SODAQ_DEBUG)
        header = true;   // re-print header only if debug messages were shown
   }
   else {
-    // if time to go is less than measurement interval 
+    // if time to go is less than measurement interval
     // To prevent unnecessary stopping of fan.
     if (MEASUREMENTPERIOD - ElapseCnt < MEASUREINTERVAL)
         Interval = MEASUREMENTPERIOD - ElapseCnt;
@@ -525,16 +525,16 @@ void loop() {
     setLight(OFF);
     StillAlive = 0;
   }
-  
-  read_all(); 
-  
+
+  read_all();
+
   // stop fan and measurement if interval more than 60 seconds
   // you can adjust this to your needs, but 8 seconds (10 sec. to be save)
   // is needed to restart from idle mode (datasheet page 2)
   if (Interval >= 60000) {
     if (! sps30.stop() )  Errorloop((char *) "Could NOT stop measurement", 0);
     SPS30_idle = true;
-    
+
     // startup time is less than 8 seconds, 10 has been taken to be save
     // 10 seconds will be applied after restart
     Interval -= 10000;
@@ -544,7 +544,7 @@ void loop() {
 }
 
 //*********************************************************
-//**        read and display all SPS30 values            **     
+//**        read and display all SPS30 values            **
 //*********************************************************
 bool read_all() {
   uint8_t ret, error_cnt = 0;
@@ -553,17 +553,17 @@ bool read_all() {
   // loop to get data
   do {
       ret = sps30.GetValues(&val);
-  
+
       // data might not have been ready
       if (ret == ERR_DATALENGTH || val.MassPM1 == 0) {
-  
+
           if (error_cnt++ > 3) {
             ErrtoMess((char *) "Error during reading values: ",ret);
             return(false);
           }
           delay(1000);
       }
-  
+
       // if other error
       else if(ret != ERR_OK) {
         ErrtoMess((char *) "Error during reading values: ",ret);
@@ -590,16 +590,16 @@ bool read_all() {
   TotalMassPM2 += val.MassPM2;
   TotalMassPM10 += val.MassPM10;
   SampleCnt++;
-  
+
   return(true);
 }
 
 //*****************************************************************
-//* @brief will print nice aligned columns                       **     
-//*                                                              **     
-//* @param val   : value to print                                **     
+//* @brief will print nice aligned columns                       **
+//*                                                              **
+//* @param val   : value to print                                **
 //* @param width : total width of value including decimal point  **
-//* @param prec  : precision after the decimal point             **     
+//* @param prec  : precision after the decimal point             **
 //*****************************************************************
 void print_aligned(double val, signed char width, unsigned char prec) {
   char out[25];
@@ -647,13 +647,13 @@ void InitSodaq() {
     if(! strcmp(DEVICE_ID,"yourdeviceid"))
       Errorloop((char *) "Please update Vodafone credentials in keys.h", 0);
   }
-  
+
   MODEM_STREAM.begin(r4x.getDefaultBaudrate());   // set to 115200 in r4x.h
-  
+
   if (SODAQ_DEBUG) r4x.setDiag(DEBUG_STREAM);
   r4x.init(&saraR4xxOnOff, MODEM_STREAM);
-  
-  if (!r4x.connect(apn, urat, SIM_ICCID,forceOperator, BAND_MASK_UNCHANGED, BAND_MASK_UNCHANGED)) 
+
+  if (!r4x.connect(apn, urat, SIM_ICCID,forceOperator, BAND_MASK_UNCHANGED, BAND_MASK_UNCHANGED))
     Errorloop((char *) "FAILED TO CONNECT TO MODEM", 0);
 }
 
@@ -672,10 +672,10 @@ void GetDeviceInfo() {
     DEBUG_STREAM.print(F("Serial number : "));
     if(strlen(buf) > 0) {
       DEBUG_STREAM.print(buf);
-      
+
       // use the last digits (4 = default) for SPS_id
       if (SPSID > strlen(buf)) ErrtoMess((char *) "Too many SPSID digits requested", 0);
-      
+
       for (i = strlen(buf) - SPSID, j = 0; i < strlen(buf); i++, j++) SPS_id[j]= buf[i];
     }
     else DEBUG_STREAM.print(F("not available"));
@@ -684,7 +684,7 @@ void GetDeviceInfo() {
     ErrtoMess((char *) "could not get serial number", ret);
 
   SPS_id[j] = 0x0; // terminate
-  
+
   // try to get product name
   ret = sps30.GetProductName(buf, 32);
   if (ret == ERR_OK){
@@ -718,7 +718,7 @@ void GetDeviceInfo() {
     DEBUG_STREAM.print(v.SHDLC_minor);
     DEBUG_STREAM.print("\t\t");
   }
-    
+
   DEBUG_STREAM.print("Library level : ");
   DEBUG_STREAM.print(v.DRV_major);
   DEBUG_STREAM.print(".");
@@ -726,17 +726,17 @@ void GetDeviceInfo() {
 }
 
 //*************************************************************
-//*  @brief : continued loop after fatal error               **     
-//*  @param mess : message to display                        **     
-//*  @param r    : error code                                **     
-//*                                                          **     
-//*  if r is zero, it will only display the message          **     
+//*  @brief : continued loop after fatal error               **
+//*  @param mess : message to display                        **
+//*  @param r    : error code                                **
+//*                                                          **
+//*  if r is zero, it will only display the message          **
 //*************************************************************
 void Errorloop(char *mess, uint8_t r) {
   if (r) ErrtoMess(mess, r);
   else DEBUG_STREAM.println(mess);
   DEBUG_STREAM.println(F("Program on hold"));
-  
+
   while(1) {
     setLight(RED);    delay(1000);
     setLight(OFF);    delay(1000);
@@ -744,9 +744,9 @@ void Errorloop(char *mess, uint8_t r) {
 }
 
 //***********************************************************
-//*  @brief :  display error message                       **     
-//*  @param mess : message to display                      **     
-//*  @param r    : error code                              **     
+//*  @brief :  display error message                       **
+//*  @param mess : message to display                      **
+//*  @param r    : error code                              **
 //***********************************************************
 void ErrtoMess(char *mess, uint8_t r) {
   char buf[80];
@@ -759,7 +759,7 @@ void ErrtoMess(char *mess, uint8_t r) {
 
 //***********************************************************
 //* @brief : prints repeated message, then waits for enter **
-//* to come in from the serial port.                       **     
+//* to come in from the serial port.                       **
 //***********************************************************
 void serialTrigger(char * mess) {
   DEBUG_STREAM.println();
