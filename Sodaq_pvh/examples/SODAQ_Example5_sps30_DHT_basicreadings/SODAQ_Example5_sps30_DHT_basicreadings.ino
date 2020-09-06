@@ -12,15 +12,21 @@
  *   -requires the following SODAQ drivers :
  *   https://github.com/SodaqMoja/Sodaq_R4X
  *   https://github.com/SodaqMoja/Sodaq_wdt
- *   -requires at least SPS30 driver version 1.3.10: https://github.com/paulvha/sps30
+ *   -requires latest SPS30 driver version: https://github.com/paulvha/sps30
  * 
  * Version 3.0 Paul van Haastrecht / June 2020
  *  - Version with DHT-XX sensors
  *  
- *  REQUIRES the following Arduino libraries:
+ *   REQUIRES the following Arduino libraries:
  * - DHT Sensor Library: https://github.com/adafruit/DHT-sensor-library
  * - Adafruit Unified Sensor Lib: https://github.com/adafruit/Adafruit_Sensor
  * - more info : https://learn.adafruit.com/dht/overview
+ * 
+ * Version 4.0 Paul van Haastrecht / September 2020
+ *  - added T-Mobile for Sodaq
+ *  - added ABCL and CBOR data format
+ *  - if CBOR is enabled https://github.com/telecombretagne/YACL is needed
+
  *
  *  =========================  Highlevel description ================================
  *
@@ -39,7 +45,7 @@
  *  1 VCC -------   5V
  *  2 RX -------- 1 TX 
  *  3 TX -------- 0 RX 
- *  4 Select-----     NOT CONNECTED (Select Serial)
+ *  4 Select-----   NOT CONNECTED (Select Serial)
  *  5 GND -------   GND
  *  
  *  DHT-11 Adafruit (https://learn.adafruit.com/dht/using-a-dhtxx-sensor)
@@ -63,7 +69,7 @@
  *  SPS30 pin         SODAQ
  *  1 VCC ------------- 5V
  *  2 SDA -------------SDA (next to ARF     NOT A4 / SDA1)
- *  3 SCL -------------SCL (next to SCL/ARF NOT A5/ SCL1)
+ *  3 SCL -------------SCL (next to SDA/ARF NOT A5/ SCL1)
  *  4 Select ----------GND(select I2c)
  *  5 GND ------------ GND
  *
@@ -94,12 +100,45 @@
  *  
  *  ================================= PARAMETERS =====================================
  *
- *  From line 125 there are configuration parameters for the program.
+ *  From line 167 there are configuration parameters for the program.
  */
  //###################################################################################
+ // !!!!!!!!!!!!!! for Vodafone connection                                      !!!!!!
  // !!!!!!!!!!!!!! Also update the attached keys.h file with device information !!!!!!
  //###################################################################################
  /*
+ * ================================ Disclaimer ======================================
+ * 
+ * Parts of the code have been taken from public available SODAQ example programmes :
+ * 
+ * Copyright (c) 2019, SODAQ
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice,
+ * this list of conditions and the following disclaimer.
+ * 
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ * 
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ * may be used to endorse or promote products derived from this software without
+ * specific prior written permission.
+
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  *  ================================ Disclaimer ======================================
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -112,14 +151,20 @@
  *
  *  NO support, delivered as is, have fun, good luck !!
  */
-#include <Sodaq_R4X.h>
-#include <Sodaq_wdt.h>
+#include "Sodaq_pvh.h"
 #include <Adafruit_Sensor.h>
 #include <DHT.h>
 #include <DHT_U.h>
 #include "sps30.h"
 #include "keys.h"
 #include <avr/dtostrf.h>
+//*****************************************************************
+//**    include Concise Binary Object Representation (CBOR)      **
+//**    requires the YACL library to be downloaded               **
+//**    https://github.com/telecombretagne/YACL                  **
+//**    uncomment define to include                              **
+//*****************************************************************
+//#define INCLUDE_CBOR 1
 
 //*****************************************************************
 //**                SELECT SPS30 connection (see above)          **
@@ -129,25 +174,66 @@
 #define SP30_COMMS SERIALPORT
 
 //*****************************************************************
+//**                SELECT ID length                             **
+//** default is last 4 digits from SPS30 serialnumber            **
+//*****************************************************************
+#define SPSID 4
+
+//*****************************************************************
 //**                SELECT PROVIDER INFORMATION                  **
 //*****************************************************************
 
-// NL VODAFONE NB-IoT
+// NL VODAFONE NB-IoT 
+/*
  const char* provider = "NL VODAFONE NB-IoT";
  const char* apn = "nb.inetd.gdsp";
- const char* forceOperator = "20404"; // optional - depends on SIM / network
+ const char* forceOperator = "20404"; 
  const char* urat = "8";
+ const char* API_ENDPOINT = "api.allthingstalk.io";
+ const uint16_t API_PORT = 8891;
 
-// NL VODAFONE LTE-M
-//const char* provider = "NL VODAFONE LTE-M";
-//const char* apn = "live.vodafone.com";
-//const char* forceOperator = "20404"; // optional - depends on SIM / network
-//const char* urat = "7";
+Select_Operator Operator  = S_VODAFONE;     // use Jason format
+//Select_Operator Operator  = S_VODAFONE_A;   // use ABCL format
+//Select_Operator Operator  = S_VODAFONE_C;   // use CBOR format
+*/
+// NL VODAFONE LTE-M (not tested)
+/*
+const char* provider = "NL VODAFONE LTE-M";
+const char* apn = "live.vodafone.com";
+const char* forceOperator = "20404"; 
+const char* urat = "7";
+const uint16_t API_PORT = 8891;
 
-// NL KPN
-//const char* provider = "NL KPN";
-//const char* apn = "internet.m2m";
-//const char* forceOperator = "20408"; // optional - depends on SIM / network
+Select_Operator Operator  = S_VODAFONE;     // use Jason format
+//Select_Operator Operator  = S_VODAFONE_A;   // use ABCL format
+//Select_Operator Operator  = S_VODAFONE_C;   // use CBOR format
+*/
+
+// NL KPN (not tested)
+/*
+const char* provider = "NL KPN";
+const char* apn = "internet.m2m";
+const char* forceOperator = "20408"; 
+const uint16_t API_PORT = 8891;
+Select_Operator Operator  = S_KPN;
+Select_Operator Operator  = S_KPN;     // use Jason format
+//Select_Operator Operator  = S_KPN_A;   // use ABCL format
+//Select_Operator Operator  = S_KPN_C;  // use CBOR format
+*/
+
+// NL T-Mobile 
+//*
+ const char* provider = "NL T-MOBILE NB-IoT";
+ const char* apn = "cdp.iot.t-mobile.nl";
+ const char* forceOperator = "20416"; 
+ const char* urat = "8";
+ const char* API_ENDPOINT = "172.27.131.100";
+ const uint16_t API_PORT = 15683;
+
+Select_Operator Operator  = S_TMOBILE;     // use Jason format
+//Select_Operator Operator  = S_TMOBILE_A;   // use ABCL format
+//Select_Operator Operator  = S_TMOBILE_C;     // use CBOR format
+//*/
 
 //****************************************************************
 //* Define debug messages                                       **     
@@ -218,6 +304,11 @@
 #define DEBUG_STREAM_BAUD 115200
 #define STARTUP_DELAY 5000        // WDT
 
+//*********************** include CBOR ***************************
+#ifdef INCLUDE_CBOR
+#include "YACL.h"
+#endif
+
 //*********************** CONSTRUCTORS ***************************
 SPS30 sps30;
 Sodaq_R4X r4x;
@@ -233,7 +324,11 @@ float TotalMassPM1  = 0;
 float TotalMassPM2  = 0;
 float TotalMassPM10 = 0;
 uint32_t SampleCnt  = 0;
-String SPS_id ;               // SPS30 ID to include 
+
+char SPS_id[SPSID +1];       // last digits (default 4) serial number + 0x0 
+uint8_t SendBuf[200];        // will contain the UDP package to be sent
+String TempBuf;              // temp space
+uint8_t cnt;                 // number of bytes in SendbBuf 
 
 float _temperature, _humidity;
 unsigned long startMillis;   // Used to keep track of send interval
@@ -244,52 +339,166 @@ bool header = true;          // display header
 //****************************************************************
 void sendMessageThroughUDP()
 {
-    if (SKETCH_DEBUG) DEBUG_STREAM.println("\nSending message through UDP");
+  if (SKETCH_DEBUG) DEBUG_STREAM.println("\nSending message through UDP");
 
-    int localPort = 16666;
-    int socketID = r4x.socketCreate(localPort);
+  int localPort = 16666;
+  int socketID = r4x.socketCreate(localPort);
 
-    if (socketID >= 7 || socketID < 0) {
-        DEBUG_STREAM.println("Failed to create socket");
-        return;
-    }
+  if (socketID >= 7 || socketID < 0) {
+      DEBUG_STREAM.println("Failed to create socket");
+      return;
+  }
 
-    if (SKETCH_DEBUG) DEBUG_STREAM.println("Created socket!");
-    
-    _temperature = read_Temperature();
-    
-    setLight(GREEN);   // indicate sending
-    
+  if (SKETCH_DEBUG) DEBUG_STREAM.println("Created socket!");
+  
+  _temperature = read_Temperature();
+  
+  setLight(GREEN);   // indicate sending
+  
+  //**************** create payload ***********************
+ 
+  if (Operator == S_VODAFONE || Operator == S_VODAFONE_A || Operator == S_VODAFONE_C){
+
+    // add AllThingsTalk credentials
     String deviceId = DEVICE_ID;    // defined in keys.h
     String token = DEVICE_TOKEN;
+    TempBuf = deviceId + '\n' + token + '\n';
+
+    for(cnt = 0 ; cnt < TempBuf.length(); cnt++)  SendBuf[cnt] = TempBuf[cnt];
     
-    // create JSON with values
-    String value =  "{\"ID\":{\"value\":\"" + String(SPS_id) + "\"}";
-           value += ",\"M1\":{\"value\":" + String(TotalMassPM1 / SampleCnt) +"}";
-           value += ",\"M2\":{\"value\":" + String(TotalMassPM2 / SampleCnt) +"}";
-           value += ",\"M10\":{\"value\":" + String(TotalMassPM10 / SampleCnt) +"}";
-           value += ",\"HUM\":{\"value\":" + String(_humidity) +"}";
-           value += ",\"TEMP\":{\"value\":" + String(_temperature) +"}}";
+    if (Operator == S_VODAFONE ) JASON_DataPayload();
+    else if (Operator == S_VODAFONE_A) ABCL_DataPayload();
+    else CBOR_DataPayload();
+  }
 
-    String reading = deviceId + '\n' + token + '\n' + value;
+  else if (Operator == S_TMOBILE){
+    cnt = 0;
+    JASON_DataPayload();
+  }
+  
+  else if (Operator == S_TMOBILE_A){
+    cnt = 0;
+    ABCL_DataPayload();
+  }
 
-    uint8_t rsize = reading.length();
-    int lengthSent = r4x.socketSend(socketID, ALLTHINGSTALK_IP, 8891, (uint8_t*)reading.c_str(), rsize);
-    r4x.socketClose(socketID);
+  else if (Operator == S_TMOBILE_C){
+    cnt = 0;
+    CBOR_DataPayload();
+  }
 
-    // only reset if succesfull
-    if (rsize == lengthSent) {
-      TotalMassPM1 = 0; TotalMassPM2 = 0; TotalMassPM10 = 0; SampleCnt = 0;
-      startMillis = millis(); setLight(OFF);
-    }
-    else
-      setLight(RED);    // indicate error
+  else if (Operator == S_KPN || Operator == S_KPN_A || Operator == S_KPN_C) {
+    DEBUG_STREAM.println("KPN HAS NOT BEEN IMPLEMENTED YET");
+    setLight(RED);    // indicate error
+    return;
+  }
     
-    if (SKETCH_DEBUG) {
-      DEBUG_STREAM.println("data sent: "); DEBUG_STREAM.println(reading); 
-      DEBUG_STREAM.print("Length buffer vs sent:"); DEBUG_STREAM.print(rsize); DEBUG_STREAM.print(",");
-      DEBUG_STREAM.println(lengthSent); DEBUG_STREAM.println();
+  int lengthSent = r4x.socketSend(socketID, API_ENDPOINT, API_PORT, SendBuf, cnt);
+  r4x.socketClose(socketID);
+
+  // only reset if succesfull
+  if (cnt == lengthSent) {
+    TotalMassPM1 = 0; TotalMassPM2 = 0; TotalMassPM10 = 0; SampleCnt = 0;
+    startMillis = millis(); 
+    setLight(OFF);
+  }
+  else {
+    if (SKETCH_DEBUG) DEBUG_STREAM.println("Error during sending");
+    setLight(RED);    // indicate error
+  }
+  
+  if (SKETCH_DEBUG)  {
+    
+    DEBUG_STREAM.print("data sent: (HEX)  0x"); 
+    for (byte i= 0; i < cnt; i++) {
+      if (SendBuf[i] < 0x10) DEBUG_STREAM.print("0");
+      DEBUG_STREAM.print(SendBuf[i], HEX); 
+      DEBUG_STREAM.print(" ");
     }
+    
+    DEBUG_STREAM.print("\ndata sent: (ASCII)   "); 
+    for (byte i= 0; i < cnt; i++) {
+      if (SendBuf[i] > 0x1f && SendBuf[i] < 0x7f){
+        DEBUG_STREAM.print( (char) SendBuf[i]);
+        DEBUG_STREAM.print("  ");
+      }
+      else DEBUG_STREAM.print("?  ");
+    }
+         
+    DEBUG_STREAM.print("\nLength buffer vs sent:"); DEBUG_STREAM.print(cnt); DEBUG_STREAM.print(",");
+    DEBUG_STREAM.println(lengthSent); DEBUG_STREAM.println();
+  }
+}
+
+//***********************************************************
+//*            add CBOR data format                        **
+//***********************************************************
+void CBOR_DataPayload()
+{
+#ifdef INCLUDE_CBOR  
+  // Data is a dictionary of key/values, which corresponds to CBORPair objects
+  // Thus, we create a CBORPair, and reserve a buffer of 100 bytes for it.
+  // This is not mandatory, as CBORPair can reallocate a bigger buffer on the
+  // fly, but preferable in terms of memory management.
+  CBORPair data = CBORPair(100);
+
+  data.append("ID", SPS_id);
+  data.append("M1", (float) TotalMassPM1 / SampleCnt);
+  data.append("M2", (float) TotalMassPM2 / SampleCnt);
+  data.append("M10",(float) TotalMassPM10 / SampleCnt);
+  data.append("TEMP", _temperature);
+  data.append("HUM", _humidity);
+
+  // get start of buffer
+  const uint8_t *cbor_encoded = data.to_CBOR();
+
+  // copy result to sent buffer
+  for (size_t i=0 ; i < data.length() ; i++) {
+      SendBuf[cnt++] = cbor_encoded[i];
+  }
+#endif
+}
+
+//***********************************************************
+//*            add JASON data format                       **
+//***********************************************************
+void JASON_DataPayload(){
+  
+  TempBuf =  "{\"ID\":{\"value\":\"" + String(SPS_id) + "\"}";
+  TempBuf += ",\"M1\":{\"value\":" + String(TotalMassPM1 / SampleCnt) +"}";
+  TempBuf += ",\"M2\":{\"value\":" + String(TotalMassPM2 / SampleCnt) +"}";
+  TempBuf += ",\"M10\":{\"value\":" + String(TotalMassPM10 / SampleCnt) +"}";
+  TempBuf += ",\"TEMP\":{\"value\":" + String(_temperature) +"}";
+  TempBuf += ",\"HUM\":{\"value\":" + String(_humidity) +"}}";
+  
+  // copy result to sent buffer
+  for(uint8_t i = 0 ; i < TempBuf.length(); i++)  SendBuf[cnt++] = TempBuf[i];
+}
+
+//*********************************************************************
+//* add AllThingsTalk Binary Conversion Language​(ABCL)​data format  **
+//*********************************************************************
+void ABCL_DataPayload()
+{
+  // add ID
+  for (uint8_t i = 0; i < SPSID; i++)  SendBuf[cnt++] = SPS_id[i];
+ 
+  // add value
+  add_float(TotalMassPM1 / SampleCnt);
+  add_float(TotalMassPM2 / SampleCnt);
+  add_float(TotalMassPM10 / SampleCnt);
+  add_float(_temperature);
+  add_float(_humidity);
+}
+
+//***********************************************************
+//*  add floating as 4 bytes to the send buffer            **
+//***********************************************************
+void add_float(float c)
+{
+  ByteToFloat conv;
+  conv.value = c;
+  for (byte i = 0; i < 4; i++)
+    SendBuf[cnt++] = conv.array[3-i];
 }
 
 //****************************************************************
@@ -298,13 +507,30 @@ void sendMessageThroughUDP()
 void setup() {
   
   sodaq_wdt_safe_delay(STARTUP_DELAY);
- 
+  
+  InitLed();
+   
   DEBUG_STREAM.begin(DEBUG_STREAM_BAUD);
   
   if (SKETCH_DEBUG ||SPS30_DEBUG || SODAQ_DEBUG) 
-      serialTrigger((char *) "SPS30-SODAQ-Example4: reading with DS18X20. press <enter> to start");
-  
-  InitLed();
+      serialTrigger((char *) "SPS30-SODAQ-Example5: reading with DHT-xx. press <enter> to start");
+
+#ifndef INCLUDE_CBOR  
+  if (Operator == S_VODAFONE_C || Operator == S_TMOBILE_C || Operator == S_KPN_C)
+  Errorloop((char *)"REQUESTED CBOR HAS NOT BEEN SELECTED TO BE INCLUDED",0);
+#endif
+ 
+  if (Operator == S_VODAFONE || Operator == S_TMOBILE || Operator == S_KPN)
+    DEBUG_STREAM.println(F("Sending in Jason data format"));
+
+  else if (Operator == S_VODAFONE_A || Operator == S_TMOBILE_A || Operator == S_KPN_A)
+    DEBUG_STREAM.println(F("Sending in ABCL data format"));
+
+  else if (Operator == S_VODAFONE_C || Operator == S_TMOBILE_C || Operator == S_KPN_C)
+    DEBUG_STREAM.println(F("Sending in CBOR data format"));
+
+  else
+    Errorloop((char *) "Unknown Data format", 0);
 
   setLight(GREEN);       InitDht();
 
@@ -380,38 +606,6 @@ void loop() {
   delay(Interval);
 }
 
-//****************************************************************
-//*            read and display device info                     **
-//****************************************************************
-void GetDeviceInfo()
-{
-  char buf[32];
-  uint8_t ret, cnt = 0;
-  
-  while(cnt < 2) {    // retry 3 times !
-    
-    //try to read serial number
-    ret = sps30.GetSerialNumber(buf, 32);
-    
-    if (ret == ERR_OK) {
-      DEBUG_STREAM.print(F("Serial number : "));
-      
-      if(strlen(buf) > 0) {
-        DEBUG_STREAM.println(buf);
-        
-        // use the last 4 digits for SPS_id
-        for (uint8_t i = 12; i < 16; i++) SPS_id += buf[i];
-        return;
-      }
-      else DEBUG_STREAM.println(F("not available"));
-    }
-    else {
-      ErrtoMess((char *) "could not get serial number: ", ret);
-    }
-    
-    cnt++;
-  }
-}
 
 //****************************************************************
 //**        read and display all values                         **     
@@ -448,11 +642,9 @@ bool read_all()
     DEBUG_STREAM.print(F("----------------------------Mass -----------------------------    -------------------------------- Number --------------------------------------       --Partsize --"));
     DEBUG_STREAM.print("\t--Temperature-- -- humidity--");
     DEBUG_STREAM.print(F("\n                     Concentration [μg/m3]                                                 Concentration [#/cm3]                                           [μm]  "));
-    
 
     if (TEMP_TYPE)  DEBUG_STREAM.print("\t    Celsius\t\t% RH");
     else DEBUG_STREAM.print("\t  Fahrenheit\t\t% RH");
-
     
     DEBUG_STREAM.println(F("\n PM1.0             PM2.5           PM4.0           PM10             PM0.5           PM1.0           PM2.5           PM4.0              PM10               Typical"));
     header = false;
@@ -513,6 +705,7 @@ void InitDht()
   
   DEBUG_STREAM.println(F("Detected DHT"));
 }
+
 //****************************************************************
 //**                   INITIALIZE SPS30                         **
 //****************************************************************
@@ -557,6 +750,74 @@ void InitSodaq()
   if (!r4x.connect(apn, urat))  Errorloop((char *) "FAILED TO CONNECT TO MODEM", 0);
 }
 
+//***********************************************************
+//*            read and display SPS30 device info          **
+//***********************************************************
+void GetDeviceInfo() {
+
+  char buf[32];
+  uint8_t ret, i, j=0;
+  SPS30_version v;
+
+  //try to read serial number
+  ret = sps30.GetSerialNumber(buf, 32);
+  if (ret == ERR_OK) {
+    DEBUG_STREAM.print(F("Serial number : "));
+    if(strlen(buf) > 0) {
+      DEBUG_STREAM.print(buf);
+      
+      // use the last digits (4 = default) for SPS_id
+      if (SPSID > strlen(buf)) ErrtoMess((char *) "Too many SPSID digits requested", 0);
+      
+      for (i = strlen(buf) - SPSID, j = 0; i < strlen(buf); i++, j++) SPS_id[j]= buf[i];
+    }
+    else DEBUG_STREAM.print(F("not available"));
+  }
+  else
+    ErrtoMess((char *) "could not get serial number", ret);
+
+  SPS_id[j] = 0x0; // terminate
+  
+  // try to get product name
+  ret = sps30.GetProductName(buf, 32);
+  if (ret == ERR_OK){
+    DEBUG_STREAM.print(F("\tProduct name  : "));
+
+    if(strlen(buf) > 0)  DEBUG_STREAM.print(buf);
+    else DEBUG_STREAM.print(F("not available"));
+  }
+  else
+    ErrtoMess((char *) "could not get product name.", ret);
+
+  // try to get version info
+  ret = sps30.GetVersion(&v);
+  if (ret != ERR_OK) {
+    DEBUG_STREAM.println(F("Can not read version info"));
+    return;
+  }
+
+  DEBUG_STREAM.print("\tFirmware level: ");
+  DEBUG_STREAM.print(v.major);
+  DEBUG_STREAM.print(".");
+  DEBUG_STREAM.println(v.minor);
+
+  if (SP30_COMMS != I2C_COMMS) {
+    DEBUG_STREAM.print("Hardware level: ");
+    DEBUG_STREAM.print(v.HW_version);
+
+    DEBUG_STREAM.print("\t\t\tSHDLC protocol: ");
+    DEBUG_STREAM.print(v.SHDLC_major);
+    DEBUG_STREAM.print(".");
+    DEBUG_STREAM.print(v.SHDLC_minor);
+    DEBUG_STREAM.print("\t\t");
+  }
+    
+  DEBUG_STREAM.print("Library level : ");
+  DEBUG_STREAM.print(v.DRV_major);
+  DEBUG_STREAM.print(".");
+  DEBUG_STREAM.println(v.DRV_minor);
+}
+
 //****************************************************************
 //**   @brief : Read Temperature from DHT                       **
 //****************************************************************
@@ -585,66 +846,6 @@ float read_Temperature()
   
   if (isnan(event.relative_humidity)) return(0);
   return(event.relative_humidity);
-}
-
-//****************************************************************
-//*                        LED FUNCTIONS                        **     
-//****************************************************************
-void InitLed()
-{
-  pinMode(ledRed, OUTPUT);
-  pinMode(ledGreen, OUTPUT);
-  pinMode(ledBlue, OUTPUT);
-
-  digitalWrite(ledRed, HIGH);
-  digitalWrite(ledGreen, HIGH);
-  digitalWrite(ledBlue, HIGH);
-}
-
-void setLight(lightColor color)
-{
-  digitalWrite(ledRed, HIGH);
-  digitalWrite(ledGreen, HIGH);
-  digitalWrite(ledBlue, HIGH);
-
-  switch (color)
-  {
-    case RED:
-      digitalWrite(ledRed, LOW);
-      break;
-
-    case GREEN:
-      digitalWrite(ledGreen, LOW);
-      break;
-
-    case BLUE:
-      digitalWrite(ledBlue, LOW);
-      break;  
-
-    case YELLOW:
-      digitalWrite(ledRed, LOW);
-      digitalWrite(ledGreen, LOW);
-      break;
-
-    case MAGENTA:
-      digitalWrite(ledRed, LOW);
-      digitalWrite(ledBlue, LOW);
-      break;
-
-    case CYAN:
-      digitalWrite(ledGreen, LOW);
-      digitalWrite(ledBlue, LOW);
-      break;
-
-    case WHITE:
-      digitalWrite(ledRed, LOW);
-      digitalWrite(ledGreen, LOW);
-      digitalWrite(ledBlue, LOW);
-      break;
-      
-    default:
-      break;
-  }
 }
 
 //****************************************************************

@@ -1,0 +1,36 @@
+﻿#######################################
+# Syntax Coloring Map
+# Sodaq  //paulvha September 2020
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+Sodaq	KEYWORD1
+DRV_major	KEYWORD1
+DRV_minor	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+InitLed	KEYWORD2
+setLight	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
+S_VODAFONE	LITERAL1
+S_VODAFONE_A	LITERAL1
+S_VODAFONE_C	LITERAL1
+S_KPN	LITERAL1
+S_KPN_A	LITERAL1
+S_KPN_C	LITERAL1
+S_TMOBILE	LITERAL1
+S_TMOBILE_A	LITERAL1
+S_TMOBILE_C	LITERAL1
+
+
+

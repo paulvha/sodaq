@@ -15,21 +15,13 @@
  *  
  *  paulvha / Version 1.0 / April 2020 
  *  - Initial version
+ *  
+ *  paulvha / Version 1.0.1 / September 2020
+ *  - small code change (moved out led functions
  */
 
+#include "Sodaq_pvh.h"
 #include <Sodaq_LSM303AGR.h>
-
-// define lef colors
-enum lightColor {
-  RED,
-  GREEN,
-  BLUE,
-  YELLOW,
-  MAGENTA,
-  CYAN,
-  WHITE,
-  OFF
-};
 
 // define time (mS) delay after detection and setting led
 // higher number give more time to settle the board in position
@@ -88,98 +80,43 @@ void loop() {
   SerialUSB.print("Z: ");SerialUSB.print(accZ); SerialUSB.print("  ");SerialUSB.println("m/s^2");
 
   // tilt detection
-  if (accX < -XaxeSens) setLight(BLUE);
-  if (accX > XaxeSens ) setLight(YELLOW);
+  if (accX < -XaxeSens) LightSet(BLUE);
+  if (accX > XaxeSens ) LightSet(YELLOW);
 
   // shake detection
   if (accY > YaxeSens || accY < -YaxeSens) {
     // only if flat on the surface
-    if (accZ > ZaxeSens ) setLight(WHITE); 
+    if (accZ > ZaxeSens ) LightSet(WHITE); 
   }
 
   // turned detection
-  if (accZ < -ZaxeSens) setLight(GREEN);
+  if (accZ < -ZaxeSens) LightSet(GREEN);
 
   // upside position
-  if (accZ > ZaxeSens ) setLight(OFF);
+  if (accZ > ZaxeSens ) LightSet(OFF);
 
   // delay before next try
   delay(500);
 }
 
-//*****************************************************************
-//**                      LED FUNCTIONS                          **
-//*****************************************************************
-
-#if defined(_VARIANT_SODAQ_SFF_) || defined(_VARIANT_SODAQ_SARA_)
-  #define ledRed    LED_RED
-  #define ledGreen  LED_GREEN
-  #define ledBlue   LED_BLUE
-#else
-  #define ledRed    RED
-  #define ledGreen  GREEN
-  #define ledBlue   BLUE
-#endif
-
-void InitLed()
+void LightSet(lightColor color)
 {
-  pinMode(ledRed, OUTPUT);
-  pinMode(ledGreen, OUTPUT);
-  pinMode(ledBlue, OUTPUT);
-
-  digitalWrite(ledRed, HIGH);
-  digitalWrite(ledGreen, HIGH);
-  digitalWrite(ledBlue, HIGH);
-}
-
-void setLight(lightColor color)
-{
-  bool Rdelay = true;
-  
-  digitalWrite(ledRed, HIGH);
-  digitalWrite(ledGreen, HIGH);
-  digitalWrite(ledBlue, HIGH);
-
+ 
   switch (color)
   {
     case RED:
-      digitalWrite(ledRed, LOW);
-      break;
-
     case GREEN:
-      digitalWrite(ledGreen, LOW);
-      break;
-
     case BLUE:
-      digitalWrite(ledBlue, LOW);
-      break;  
-
     case YELLOW:
-      digitalWrite(ledRed, LOW);
-      digitalWrite(ledGreen, LOW);
-      break;
-
     case MAGENTA:
-      digitalWrite(ledRed, LOW);
-      digitalWrite(ledBlue, LOW);
-      break;
-
     case CYAN:
-      digitalWrite(ledGreen, LOW);
-      digitalWrite(ledBlue, LOW);
-      break;
-
     case WHITE:
-      digitalWrite(ledRed, LOW);
-      digitalWrite(ledGreen, LOW);
-      digitalWrite(ledBlue, LOW);
+      setLight(color);
+      delay(RESPONDSDELAY);
       break;
       
     default:
-      Rdelay = false;
+      setLight(color);
       break;
   }
-  
-  // slow down responds
-  if (Rdelay) delay(RESPONDSDELAY);
 }
